@@ -136,6 +136,56 @@
   min-height: auto;
 }
 
+.board-inline-form {
+  display: flex;
+  gap: 0.45rem;
+  margin-bottom: 6px;
+  margin-left: 3px;
+  margin-right: 3px;
+  align-items: center;
+}
+
+.board-inline-input {
+  width: 100%;
+  box-sizing: border-box;
+  height: 2.15rem;
+  border-radius: 8px;
+  border: 1px solid #3a3a3a;
+  padding: 0.42rem 0.55rem;
+  background: rgba(255, 255, 255, 0.02);
+  color: inherit;
+}
+
+.board-inline-input:focus {
+  outline: 2px solid rgba(124, 168, 255, 0.55);
+  outline-offset: 1px;
+}
+
+.board-inline-form .board-task-button {
+  flex-shrink: 0;
+}
+
+.board-task-button:disabled,
+.board-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.board-add-column-form {
+  display: grid;
+  gap: 0.55rem;
+  border: 1px dashed #3a3a3a;
+  border-radius: 12px;
+  padding: 0.75rem;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.board-add-column-form .board-button {
+  height: 2.15rem;
+  box-sizing: border-box;
+  justify-content: center;
+}
+
 /* Cards group styling */
 .board-cards {
   flex: 1;
@@ -165,4 +215,55 @@
   margin: 0.35rem 0 0;
   font-size: 0.84rem;
   opacity: 0.82;
+}
+
+.board-setup-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.65);
+}
+
+.board-setup-modal {
+  width: min(100%, 430px);
+  display: grid;
+  gap: 0.55rem;
+  border: 1px solid #3a3a3a;
+  border-radius: 14px;
+  padding: 1.15rem;
+  background: #1f1f1f;
+}
+
+.board-setup-title {
+  margin: 0 0 0.4rem;
+  font-size: 1.2rem;
+}
+
+.board-setup-label {
+  font-size: 0.86rem;
+  opacity: 0.9;
+}
+
+.board-setup-input {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #3b3b3b;
+  border-radius: 8px;
+  padding: 0.5rem 0.65rem;
+  background: rgba(255, 255, 255, 0.03);
+  color: inherit;
+}
+
+.board-setup-submit {
+  margin-top: 0.45rem;
+  justify-content: center;
+}
+
+.board-member {
+  margin: 0.4rem 0 0;
+  font-size: 0.82rem;
+  opacity: 0.75;
 }
