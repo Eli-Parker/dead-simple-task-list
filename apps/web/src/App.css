@@ -129,6 +129,22 @@
   max-width: none;
 }
 
+<<<<<<< Updated upstream
+=======
+.recent-item-link {
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
+  transition: color 180ms ease, text-shadow 180ms ease;
+}
+
+.recent-item-link:hover {
+  color: #97cbdb;
+  text-decoration: none;
+  text-shadow: 0 3px 10px rgba(0, 0, 0, 0.65), 0 0 2px rgba(255, 255, 255, 0.2);
+}
+
+>>>>>>> Stashed changes
 .recent-item-center {
   font-size: 0.85rem;
   color: #8a8a8a;
