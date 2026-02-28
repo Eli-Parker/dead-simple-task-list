@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import type { Pool } from "pg";
 import { queryRows } from "../../db/query.js";
 import type { GraphQLContext } from "../context.js";
 import { badUserInput, notFound } from "../errors.js";
@@ -150,7 +151,7 @@ export const mutationResolvers = {
     assertUuid(args.input.board_id, "input.board_id");
     assertNonNegativeInteger(args.input.position, "input.position");
 
-    const client = await ctx.pool.connect();
+    const client = await requirePool(ctx).connect();
     try {
       await client.query("BEGIN");
 
@@ -251,7 +252,7 @@ export const mutationResolvers = {
   ): Promise<boolean> {
     assertUuid(args.id, "id");
 
-    const client = await ctx.pool.connect();
+    const client = await requirePool(ctx).connect();
     try {
       await client.query("BEGIN");
 
@@ -376,7 +377,7 @@ export const mutationResolvers = {
     assertUuid(args.input.column_id, "input.column_id");
     assertNonNegativeInteger(args.input.position, "input.position");
 
-    const client = await ctx.pool.connect();
+    const client = await requirePool(ctx).connect();
     try {
       await client.query("BEGIN");
 
@@ -693,4 +694,12 @@ function hashPassword(password: string | null | undefined): string | null {
   }
 
   return createHash("sha256").update(trimmed).digest("hex");
+}
+
+function requirePool(ctx: GraphQLContext): Pool {
+  if (!ctx.pool) {
+    throw new Error("Database is disabled. Set DATABASE_ENABLED=true to execute mutations.");
+  }
+
+  return ctx.pool;
 }

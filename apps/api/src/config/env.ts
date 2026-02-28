@@ -1,5 +1,6 @@
 export type Env = {
-  databaseUrl: string;
+  databaseEnabled: boolean;
+  databaseUrl: string | null;
   nodeEnv: string;
   port: number;
   databaseSsl: boolean;
@@ -7,20 +8,26 @@ export type Env = {
 };
 
 export function loadEnv(): Env {
-  const databaseUrl = process.env.DATABASE_URL;
-  if (!databaseUrl) {
-    throw new Error("DATABASE_URL is required");
-  }
-
   const nodeEnv = process.env.NODE_ENV ?? "development";
   const port = Number(process.env.PORT || 4000);
+  const databaseEnabled = parseBoolean(process.env.DATABASE_ENABLED, true);
 
   if (!Number.isInteger(port) || port <= 0) {
     throw new Error("PORT must be a positive integer");
   }
 
+  const databaseUrl = process.env.DATABASE_URL;
+  if (databaseEnabled) {
+    if (!databaseUrl) {
+      throw new Error("DATABASE_URL is required when DATABASE_ENABLED=true");
+    }
+
+    assertDatabaseUrl(databaseUrl);
+  }
+
   return {
-    databaseUrl,
+    databaseEnabled,
+    databaseUrl: databaseEnabled ? (databaseUrl as string) : null,
     nodeEnv,
     port,
     databaseSsl: parseBoolean(process.env.DATABASE_SSL, nodeEnv === "production"),
@@ -46,4 +53,17 @@ function parseBoolean(value: string | undefined, defaultValue: boolean): boolean
   }
 
   throw new Error(`Invalid boolean value: "${value}"`);
+}
+
+function assertDatabaseUrl(databaseUrl: string): void {
+  let url: URL;
+  try {
+    url = new URL(databaseUrl);
+  } catch {
+    throw new Error("DATABASE_URL must be a valid URL");
+  }
+
+  if (url.protocol !== "postgres:" && url.protocol !== "postgresql:") {
+    throw new Error("DATABASE_URL must start with postgres:// or postgresql://");
+  }
 }

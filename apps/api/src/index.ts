@@ -10,12 +10,19 @@ import { typeDefs } from "./graphql/type-defs.js";
 
 async function main() {
   const env = loadEnv();
-  const pool = createPool({
-    databaseUrl: env.databaseUrl,
-    databaseSsl: env.databaseSsl,
-    databaseSslRejectUnauthorized: env.databaseSslRejectUnauthorized,
-  });
-  await runMigrations(pool);
+  const pool = env.databaseEnabled && env.databaseUrl
+    ? createPool({
+        databaseUrl: env.databaseUrl,
+        databaseSsl: env.databaseSsl,
+        databaseSslRejectUnauthorized: env.databaseSslRejectUnauthorized,
+      })
+    : null;
+
+  if (pool) {
+    await runMigrations(pool);
+  } else {
+    console.log("Database disabled (DATABASE_ENABLED=false). Skipping migrations.");
+  }
 
   const server = new ApolloServer({ typeDefs, resolvers });
 
@@ -33,7 +40,9 @@ async function main() {
 
     console.log(`Received ${signal}, shutting down...`);
     await server.stop();
-    await pool.end();
+    if (pool) {
+      await pool.end();
+    }
     process.exit(0);
   };
 

@@ -55,6 +55,10 @@ if (isDirectExecution) {
   const { createPool } = await import("./pool.js");
 
   const env = loadEnv();
+  if (!env.databaseEnabled || !env.databaseUrl) {
+    throw new Error("Migrations require DATABASE_ENABLED=true and a valid DATABASE_URL");
+  }
+
   const pool = createPool({
     databaseUrl: env.databaseUrl,
     databaseSsl: env.databaseSsl,
