@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import skullIcon from './assets/skull-icon.png'
+import taskListPreview from './assets/tl-preview.png'
 import {
   loadRecentListsFromStorage,
   type RecentTaskListStorageEntry,
@@ -62,7 +63,7 @@ function App() {
         <div className="stage">
           <section className={`screen intro-screen ${showBoard ? 'exit' : ''}`}>
             <div className="body">
-              <p className="intro">Simple, clean Kanban for the people who don't f**k around. </p>
+              <p className="intro">Simple, clean Kanban for the people who don't mess around. </p>
               <div className="card">
                 <div className="card-row">
                   <button
@@ -117,6 +118,11 @@ function App() {
               <li>Work projects</li>
               <li>Anything you want!</li>
             </ul>
+            <img
+              className="preview-image"
+              src={taskListPreview}
+              alt="Task list board preview"
+            />
           </div>
         </aside>
       )}
