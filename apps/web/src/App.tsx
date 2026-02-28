@@ -11,12 +11,6 @@ type RecentTaskListSummary = {
   updatedLabel: string
 }
 
-const placeholderRecentLists: RecentTaskListStorageEntry[] = [
-  { title: 'Lorem', boardId: 'lorem' },
-  { title: 'Ipsum', boardId: 'ipsum' },
-  { title: 'Dolar', boardId: 'dolar' },
-]
-
 /**
  * Formats a task count label for display.
  *
@@ -42,7 +36,7 @@ function createBoardLink(boardId: string): string {
 
 function App() {
   const [showBoard, setShowBoard] = useState(false)
-  const [recentLists] = useState<RecentTaskListStorageEntry[]>(() => loadRecentListsFromStorage(placeholderRecentLists))
+  const [recentLists] = useState<RecentTaskListStorageEntry[]>(() => loadRecentListsFromStorage())
   const recentListSummariesByBoardId: Record<string, RecentTaskListSummary> = {}
 
   return (
@@ -82,13 +76,17 @@ function App() {
           <section className={`screen board-screen ${showBoard ? 'enter' : 'start'}`}>
             <div className="card board-card">
               <h2 className="board-title">Recents</h2>
-              {recentLists.map((list) => (
-                <a key={list.boardId} href={createBoardLink(list.boardId)} className="intro recent-item recent-item-link">
-                  <span>{list.title}</span>
-                  <span className="recent-item-center">{formatTaskCount(recentListSummariesByBoardId[list.boardId]?.taskCount ?? null)}</span>
-                  <span className="recent-item-right">{recentListSummariesByBoardId[list.boardId]?.updatedLabel ?? 'Loading...'}</span>
-                </a>
-              ))}
+              {recentLists.length === 0 ? (
+                <p className="recent-empty-message">No recent lists yet. Create a new board to get started.</p>
+              ) : (
+                recentLists.map((list) => (
+                  <a key={list.boardId} href={createBoardLink(list.boardId)} className="intro recent-item recent-item-link">
+                    <span>{list.title}</span>
+                    <span className="recent-item-center">{formatTaskCount(recentListSummariesByBoardId[list.boardId]?.taskCount ?? null)}</span>
+                    <span className="recent-item-right">{recentListSummariesByBoardId[list.boardId]?.updatedLabel ?? 'Loading...'}</span>
+                  </a>
+                ))
+              )}
               <button className="recent-list-button" onClick={() => setShowBoard(false)}>
                 Back
               </button>
