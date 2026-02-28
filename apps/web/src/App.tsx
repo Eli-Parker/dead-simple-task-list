@@ -31,7 +31,7 @@ function formatTaskCount(taskCount: number | null): string {
  * @returns Board URL with board ID query string segment.
  */
 function createBoardLink(boardId: string): string {
-  return `/board?${encodeURIComponent(boardId)}`
+  return `/#/board?${encodeURIComponent(boardId)}`
 }
 
 function App() {
@@ -69,7 +69,7 @@ function App() {
                     className="started-button"
                     type="button"
                     onClick={() => {
-                      window.location.assign('/board?')
+                      window.location.assign('/#/board')
                     }}
                   >
                     New Board
@@ -79,9 +79,9 @@ function App() {
                     Open a Recent Board
                   </button>
                 </div>
-                <p>
+                {/* <p>
                   Lorum Ipsum al dolorum penile algomothm.
-                </p>
+                </p> */}
               </div>
             </div>
           </section>

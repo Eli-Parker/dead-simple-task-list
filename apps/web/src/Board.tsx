@@ -106,11 +106,24 @@ function isLocalId(id: string | null | undefined): boolean {
 }
 
 function parseBoardIdFromLocation(search: string): string | null {
-  if (!search.startsWith('?') || search.length <= 1) {
+  const searchSource = (() => {
+    if (search.startsWith('?') && search.length > 1) {
+      return search
+    }
+
+    const hashQueryStart = window.location.hash.indexOf('?')
+    if (hashQueryStart === -1) {
+      return ''
+    }
+
+    return window.location.hash.slice(hashQueryStart)
+  })()
+
+  if (!searchSource.startsWith('?') || searchSource.length <= 1) {
     return null
   }
 
-  const encodedBoardId = search.slice(1).trim()
+  const encodedBoardId = searchSource.slice(1).trim()
   if (!encodedBoardId) {
     return null
   }
@@ -125,7 +138,9 @@ function parseBoardIdFromLocation(search: string): string | null {
 
 function writeBoardIdToLocation(boardId: string): void {
   const encodedBoardId = encodeURIComponent(boardId)
-  window.history.replaceState({}, '', `/board?${encodedBoardId}`)
+  const url = new URL(window.location.href)
+  url.hash = `/board?${encodedBoardId}`
+  window.history.replaceState({}, '', url.toString())
 }
 
 function cloneFallbackBoardColumns(): BoardColumn[] {
@@ -230,7 +245,7 @@ function saveRecentBoard(title: string, boardId: string): void {
 /**
  * Contains the tsx for the board page.
  * 
- * @returns The entire /board page
+ * @returns The entire board route page (`/#/board` in production)
  */
 export default function BoardPage() {
   const [columns, setColumns] = useState<BoardColumn[]>([])
