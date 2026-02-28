@@ -12,6 +12,13 @@ export const apiResolvers = {
   mutation: mutationResolvers,
 } as const
 
+const GRAPHQL_API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:4000/'
+
+type GraphQLResponse<TData> = {
+  data?: TData | null
+  errors?: Array<{ message?: string }>
+}
+
 /**
  * Client-side shape for board details returned by board lookup operations.
  */
@@ -37,17 +44,51 @@ export type BoardDetails = {
  * Planned return mapping:
  * returns the created board's `id` field as a string.
  *
- * Current implementation is intentionally empty while we build helpers
- * one at a time; it always returns `null`.
- *
  * @param boardTitle Board title that will map to `input.title`.
- * @returns Promise resolving to the created board ID, or `null` in placeholder state.
+ * @returns Promise resolving to the created board ID, or `null` if creation fails.
  */
 export async function createBoard(
   boardTitle: string,
 ): Promise<string | null> {
-  void boardTitle
-  return null
+  const mutationName = apiResolvers.mutation.createBoard
+  const mutation = `
+    mutation CreateBoard($input: CreateBoardInput!) {
+      ${mutationName}(input: $input) {
+        id
+      }
+    }
+  `
+
+  try {
+    const response = await fetch(GRAPHQL_API_URL, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        query: mutation,
+        variables: {
+          input: { title: boardTitle },
+        },
+      }),
+    })
+
+    if (!response.ok) {
+      return null
+    }
+
+    const payload = (await response.json()) as GraphQLResponse<
+      Record<string, { id: string } | null | undefined>
+    >
+
+    if (payload.errors?.length) {
+      return null
+    }
+
+    return payload.data?.[mutationName]?.id ?? null
+  } catch {
+    return null
+  }
 }
 
 /**
