@@ -1,5 +1,5 @@
 // import { useState } from 'react'
-import reactLogo from './assets/skull-icon.png'
+import skullIcon from './assets/skull-icon.png'
 import './App.css'
 
 function App() {
@@ -9,26 +9,24 @@ function App() {
     <div className="page-layout">
       <section className="left-pane">
         <div className="brand-row">
-          <a href="https://react.dev" target="_blank">
-            <img src={reactLogo} className="logo" alt="React logo" />
-          </a>
+          <img src={skullIcon} className="skull-icon" alt="React logo" />
         </div>
         <h1 className="app-title">The Dead Simple<br />Task List</h1>
         <p className="intro">Simple, clean Kanban for the people who don't f**k around. </p>
         <div className="card">
           <div className="card-row">
-            <button onClick={() => {}}>
-              Make Your List
+            <button className="started-button" onClick={() => {}}>
+              Get started
             </button>
-            {/* <span className="helper-text">Quick interaction demo</span> */}
+            <span className="helper-text">or</span>
+            <button className="recent-list-button" onClick={() => {}}>
+              Open a recent list
+            </button>
           </div>
           <p>
             Lorum Ipsum al dolorum penile algomothm.
           </p>
         </div>
-        <p className="read-the-docs">
-          Click on the Vite and React logos to learn more
-        </p>
       </section>
 
       <aside className="right-pane">
