@@ -129,6 +129,16 @@
   max-width: none;
 }
 
+.recent-item-link {
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.recent-item-link:hover {
+  text-decoration: underline;
+}
+
 .recent-item-center {
   font-size: 0.85rem;
   color: #8a8a8a;

@@ -1,28 +1,49 @@
 import { useState } from 'react'
 import skullIcon from './assets/skull-icon.png'
+import {
+  loadRecentListsFromStorage,
+  type RecentTaskListStorageEntry,
+} from './recentListsStorage'
 import './App.css'
 
 type RecentTaskListSummary = {
-  id: string
-  name: string
   taskCount: number
   updatedLabel: string
 }
 
-const placeholderRecentLists: RecentTaskListSummary[] = [
-  { id: 'lorem', name: 'Lorem', taskCount: 4, updatedLabel: '2 days ago' },
-  { id: 'ipsum', name: 'Ipsum', taskCount: 7, updatedLabel: '1 week ago' },
-  { id: 'dolar', name: 'Dolar', taskCount: 2, updatedLabel: 'Archived' },
+const placeholderRecentLists: RecentTaskListStorageEntry[] = [
+  { title: 'Lorem', boardId: 'lorem' },
+  { title: 'Ipsum', boardId: 'ipsum' },
+  { title: 'Dolar', boardId: 'dolar' },
 ]
 
-function formatTaskCount(taskCount: number): string {
+/**
+ * Formats a task count label for display.
+ *
+ * @param taskCount Numeric task count or `null` while data is loading.
+ * @returns Human-friendly count string.
+ */
+function formatTaskCount(taskCount: number | null): string {
+  if (taskCount === null) return 'Loading...'
   return `${taskCount} task${taskCount === 1 ? '' : 's'}`
+}
+
+/**
+ * Creates a board URL using the board ID in the query string segment.
+ *
+ * Example: `/?board-123`.
+ *
+ * @param boardId Board ID for navigation.
+ * @returns Board URL with board ID query string segment.
+ */
+function createBoardLink(boardId: string): string {
+  return `/board?${encodeURIComponent(boardId)}`
 }
 
 function App() {
   const [showBoard, setShowBoard] = useState(false)
-  // Placeholder state until recent lists are loaded from an external source.
-  const [recentLists] = useState<RecentTaskListSummary[]>(placeholderRecentLists)
+  const [recentLists] = useState<RecentTaskListStorageEntry[]>(() => loadRecentListsFromStorage(placeholderRecentLists))
+  const recentListSummariesByBoardId: Record<string, RecentTaskListSummary> = {}
 
   return (
     <div className="page-layout">
@@ -37,7 +58,7 @@ function App() {
               <p className="intro">Simple, clean Kanban for the people who don't f**k around. </p>
               <div className="card">
                 <div className="card-row">
-                  <button className="started-button" onClick={() => setShowBoard(true)}>
+                  <button className="started-button">
                     Get started
                   </button>
                   <span className="helper-text">or</span>
@@ -56,11 +77,11 @@ function App() {
             <div className="card board-card">
               <h2 className="board-title">Recents</h2>
               {recentLists.map((list) => (
-                <p key={list.id} className="intro recent-item">
-                  <span>{list.name}</span>
-                  <span className="recent-item-center">{formatTaskCount(list.taskCount)}</span>
-                  <span className="recent-item-right">{list.updatedLabel}</span>
-                </p>
+                <a key={list.boardId} href={createBoardLink(list.boardId)} className="intro recent-item recent-item-link">
+                  <span>{list.title}</span>
+                  <span className="recent-item-center">{formatTaskCount(recentListSummariesByBoardId[list.boardId]?.taskCount ?? null)}</span>
+                  <span className="recent-item-right">{recentListSummariesByBoardId[list.boardId]?.updatedLabel ?? 'Loading...'}</span>
+                </a>
               ))}
               <button className="recent-list-button" onClick={() => setShowBoard(false)}>
                 Back
