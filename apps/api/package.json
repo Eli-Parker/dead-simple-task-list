@@ -1,0 +1,26 @@
+{
+  "name": "dead-simple-task-list-api",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "migrate": "tsx src/db/migrate.ts",
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node dist/index.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "tsx --test src/**/*.test.ts"
+  },
+  "dependencies": {
+    "@apollo/server": "^5.4.0",
+    "dotenv": "^16.4.7",
+    "graphql": "^16.13.0",
+    "pg": "^8.19.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.11.0",
+    "@types/pg": "^8.16.0",
+    "tsx": "^4.21.0",
+    "typescript": "~5.9.3"
+  }
+}
