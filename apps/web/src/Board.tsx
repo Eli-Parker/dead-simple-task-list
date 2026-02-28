@@ -245,6 +245,7 @@ export default function BoardPage() {
   const [isSetupComplete, setIsSetupComplete] = useState(false)
   const [isSubmittingSetup, setIsSubmittingSetup] = useState(false)
   const [requestedBoardId] = useState<string | null>(() => parseBoardIdFromLocation(window.location.search))
+  const isJoiningExistingBoard = requestedBoardId !== null
   const [boardSetup, setBoardSetup] = useState<BoardSetup>({
     taskListName: '',
     taskListPassword: '',
@@ -287,7 +288,7 @@ export default function BoardPage() {
 
     const cleanTaskListName = boardSetup.taskListName.trim()
     const cleanMemberName = boardSetup.memberName.trim()
-    if (!cleanTaskListName || !cleanMemberName) {
+    if ((!isJoiningExistingBoard && !cleanTaskListName) || !cleanMemberName) {
       return
     }
 
@@ -295,7 +296,7 @@ export default function BoardPage() {
 
     try {
       let resolvedBoardId = requestedBoardId
-      let resolvedTitle = cleanTaskListName
+      let resolvedTitle = cleanTaskListName || 'Shared Task List'
       let resolvedColumns: BoardColumn[] = []
 
       if (resolvedBoardId) {
@@ -739,7 +740,8 @@ export default function BoardPage() {
                   taskListName: event.target.value,
                 }))
               }
-              required
+              required={!isJoiningExistingBoard}
+              disabled={isJoiningExistingBoard}
             />
 
             <label className="board-setup-label" htmlFor="task-list-password">Task list password (optional)</label>
