@@ -12,6 +12,7 @@ dist
 dist-ssr
 *.local
 BASIC_PLAN.txt
+RESOLVER_WRAPPER_ROADMAP.md
 
 # Editor directories and files
 .vscode/*
