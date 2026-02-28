@@ -10,6 +10,7 @@ import {
   getBoardById,
   getTaskById,
   modifyColumn,
+  updateColumnTitle,
   updateTaskColumn,
   type BoardDetails,
   type TaskDetails,
@@ -187,17 +188,18 @@ async function loadColumnsFromBoardDetails(boardDetails: BoardDetails): Promise<
     taskGroup.sort((left, right) => left.position - right.position)
   }
 
-  const columnsFromBoard = boardDetails.columnIds.map((columnId, index) => ({
-    id: columnId,
-    name: `Column ${index + 1}`,
-    cards: (tasksByColumnId.get(columnId) ?? []).map((task) => ({
+  const sortedColumns = [...boardDetails.columns].sort((left, right) => left.position - right.position)
+  const columnsFromBoard = sortedColumns.map((column) => ({
+    id: column.id,
+    name: column.title,
+    cards: (tasksByColumnId.get(column.id) ?? []).map((task) => ({
       id: task.id,
       title: task.title,
       detail: task.description ?? '',
     })),
   }))
 
-  const knownColumnIds = new Set(boardDetails.columnIds)
+  const knownColumnIds = new Set(boardDetails.columns.map((column) => column.id))
   for (const [columnId, taskGroup] of tasksByColumnId.entries()) {
     if (knownColumnIds.has(columnId)) {
       continue
@@ -241,6 +243,8 @@ export default function BoardPage() {
   const [draggingTask, setDraggingTask] = useState<{ taskId: string, sourceColumnId: string } | null>(null)
   const [taskDropTarget, setTaskDropTarget] = useState<{ columnId: string, index: number } | null>(null)
   const [newColumnName, setNewColumnName] = useState('')
+  const [editingColumnId, setEditingColumnId] = useState<string | null>(null)
+  const [columnNameDrafts, setColumnNameDrafts] = useState<Record<string, string>>({})
   const [toastMessage, setToastMessage] = useState('')
   const [isSetupComplete, setIsSetupComplete] = useState(false)
   const [isSubmittingSetup, setIsSubmittingSetup] = useState(false)
@@ -549,6 +553,41 @@ export default function BoardPage() {
     setDragOverColumnId(null)
   }
 
+  const handleColumnEditStart = (column: BoardColumn) => {
+    setColumnNameDrafts((prevDrafts) => ({
+      ...prevDrafts,
+      [column.id]: column.name,
+    }))
+    setEditingColumnId(column.id)
+  }
+
+  const handleColumnEditCancel = (columnId: string) => {
+    setEditingColumnId((prevId) => (prevId === columnId ? null : prevId))
+  }
+
+  const handleColumnEditSave = (event: FormEvent<HTMLFormElement>, columnId: string) => {
+    event.preventDefault()
+    const nextName = (columnNameDrafts[columnId] ?? '').trim()
+    if (!nextName) {
+      return
+    }
+
+    setColumns((prevColumns) =>
+      prevColumns.map((column) => (
+        column.id === columnId
+          ? { ...column, name: nextName }
+          : column
+      )),
+    )
+    setEditingColumnId((prevId) => (prevId === columnId ? null : prevId))
+
+    if (boardId && !isLocalId(boardId) && !isLocalId(columnId)) {
+      void updateColumnTitle(columnId, nextName).catch(() => {
+        setToastMessage('Could not rename column in API. Saved locally.')
+      })
+    }
+  }
+
   const handleColumnDrop = (targetColumnId: string) => {
     if (draggingColumnId === null || draggingColumnId === targetColumnId) {
       setDragOverColumnId(null)
@@ -701,6 +740,12 @@ export default function BoardPage() {
 
   const handleColumnDelete = async (columnId: string): Promise<void> => {
     setColumns((prevColumns) => prevColumns.filter((column) => column.id !== columnId))
+    setColumnNameDrafts((prevDrafts) => {
+      const nextDrafts = { ...prevDrafts }
+      delete nextDrafts[columnId]
+      return nextDrafts
+    })
+    setEditingColumnId((prevId) => (prevId === columnId ? null : prevId))
     setNewTaskTitles((prevTitles) => {
       const nextTitles = { ...prevTitles }
       delete nextTitles[columnId]
@@ -838,9 +883,56 @@ export default function BoardPage() {
             }}
           >
             <div className="board-column-header">
-              <h2 className="board-column-title">{column.name}</h2>
+              {editingColumnId === column.id ? (
+                <form
+                  className="board-column-title-form"
+                  onSubmit={(event) => handleColumnEditSave(event, column.id)}
+                >
+                  <input
+                    className="board-column-title-input"
+                    type="text"
+                    value={columnNameDrafts[column.id] ?? ''}
+                    onChange={(event) =>
+                      setColumnNameDrafts((prevDrafts) => ({
+                        ...prevDrafts,
+                        [column.id]: event.target.value,
+                      }))
+                    }
+                    aria-label={`Column name for ${column.name}`}
+                    autoFocus
+                  />
+                  <div className="board-column-title-actions">
+                    <button
+                      type="submit"
+                      className="board-task-button"
+                      disabled={!(columnNameDrafts[column.id] ?? '').trim()}
+                    >
+                      Save
+                    </button>
+                    <button
+                      type="button"
+                      className="board-task-button board-task-button-subtle"
+                      onClick={() => handleColumnEditCancel(column.id)}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <h2 className="board-column-title">{column.name}</h2>
+              )}
               <div className="board-column-actions">
                 <span className="board-count-pill">{column.cards.length}</span>
+                {editingColumnId !== column.id && (
+                  <button
+                    type="button"
+                    className="board-task-button board-task-button-subtle"
+                    onClick={() => handleColumnEditStart(column)}
+                    aria-label={`Edit column ${column.name}`}
+                  >
+                    Edit
+                  </button>
+                )}
                 <button
                   type="button"
                   className="board-task-button board-task-button-subtle"
@@ -859,6 +951,7 @@ export default function BoardPage() {
                   }}
                   onDragEnd={handleColumnDragEnd}
                   aria-label={`Drag column ${column.name}`}
+                  disabled={editingColumnId === column.id}
                 >
                   <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="currentColor">
                     <circle cx="8" cy="6" r="1.6" />

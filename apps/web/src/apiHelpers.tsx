@@ -28,7 +28,11 @@ export type BoardDetails = {
   title: string
   createdAt: string
   updatedAt: string
-  columnIds: string[]
+  columns: Array<{
+    id: string
+    title: string
+    position: number
+  }>
   taskIds: string[]
 }
 
@@ -106,7 +110,7 @@ export async function createBoard(
  * - `title` -> `title`
  * - `created_at` -> `createdAt`
  * - `updated_at` -> `updatedAt`
- * - board columns -> `columnIds` (list of associated column IDs)
+ * - board columns -> `columns` (list of associated columns with id/title/position)
  * - board tasks -> `taskIds` (list of associated task IDs)
  *
  * @param boardLinkToken Board link token used to fetch board details.
@@ -128,6 +132,8 @@ export async function getBoardById(
         }
         columns {
           id
+          title
+          position
         }
         tasks {
           id
@@ -165,7 +171,7 @@ export async function getBoardById(
               created_at: string
               updated_at: string
             }
-            columns: Array<{ id: string }>
+            columns: Array<{ id: string; title: string; position: number }>
             tasks: Array<{ id: string }>
           }
         | null
@@ -188,7 +194,11 @@ export async function getBoardById(
       title: boardData.board.title,
       createdAt: boardData.board.created_at,
       updatedAt: boardData.board.updated_at,
-      columnIds: boardData.columns.map((column) => column.id),
+      columns: boardData.columns.map((column) => ({
+        id: column.id,
+        title: column.title,
+        position: column.position,
+      })),
       taskIds: boardData.tasks.map((task) => task.id),
     }
   } catch {
@@ -402,6 +412,68 @@ export async function modifyColumn(
             id: columnId,
             board_id: board.id,
             position: newColumnPosition,
+          },
+        },
+      }),
+    })
+
+    if (!response.ok) {
+      return null
+    }
+
+    const payload = (await response.json()) as GraphQLResponse<
+      Record<string, { id: string } | null | undefined>
+    >
+
+    if (payload.errors?.length) {
+      return null
+    }
+
+    return null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Updates an existing column title.
+ *
+ * Planned API resolver target:
+ * `Mutation.updateColumn`
+ *
+ * Planned GraphQL input mapping:
+ * - `columnId` -> `input.id`
+ * - `newColumnTitle` -> `input.title`
+ *
+ * @param columnId Column identifier to update.
+ * @param newColumnTitle New title for the column.
+ * @returns Promise resolving to `null` after attempting the operation.
+ */
+export async function updateColumnTitle(
+  columnId: string,
+  newColumnTitle: string,
+): Promise<null> {
+  const mutationName = apiResolvers.mutation.updateColumn
+  const mutation = `
+    mutation UpdateColumn($input: UpdateColumnInput!) {
+      ${mutationName}(input: $input) {
+        id
+      }
+    }
+  `
+
+  try {
+    const response = await fetch(GRAPHQL_API_URL, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        query: mutation,
+        variables: {
+          input: {
+            id: columnId,
+            title: newColumnTitle,
           },
         },
       }),

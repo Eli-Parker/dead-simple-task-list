@@ -103,6 +103,34 @@
   font-size: 1rem;
 }
 
+.board-column-title-form {
+  display: grid;
+  gap: 0.35rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.board-column-title-input {
+  width: 100%;
+  box-sizing: border-box;
+  border-radius: 8px;
+  border: 1px solid #3a3a3a;
+  padding: 0.35rem 0.5rem;
+  background: rgba(255, 255, 255, 0.03);
+  color: inherit;
+  font: inherit;
+}
+
+.board-column-title-input:focus {
+  outline: 2px solid rgba(124, 168, 255, 0.55);
+  outline-offset: 1px;
+}
+
+.board-column-title-actions {
+  display: flex;
+  gap: 0.35rem;
+}
+
 /* Task counter pill */
 .board-count-pill {
   border-radius: 999px;
@@ -117,6 +145,7 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  flex-shrink: 0;
 }
 
 .board-column-drag-handle {
