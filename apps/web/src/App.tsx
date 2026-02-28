@@ -58,12 +58,18 @@ function App() {
               <p className="intro">Simple, clean Kanban for the people who don't f**k around. </p>
               <div className="card">
                 <div className="card-row">
-                  <button className="started-button">
-                    Get started
+                  <button
+                    className="started-button"
+                    type="button"
+                    onClick={() => {
+                      window.location.assign('/board?')
+                    }}
+                  >
+                    New Board
                   </button>
                   <span className="helper-text">or</span>
                   <button className="recent-list-button" onClick={() => setShowBoard(true)}>
-                    Open a recent list
+                    Open a Recent Board
                   </button>
                 </div>
                 <p>
