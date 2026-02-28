@@ -1,8 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import skullIcon from './assets/skull-icon.png'
 import {
   loadRecentListsFromStorage,
-  saveRecentListsToStorage,
   type RecentTaskListStorageEntry,
 } from './recentListsStorage'
 import './App.css'
@@ -45,10 +44,6 @@ function App() {
   const [showBoard, setShowBoard] = useState(false)
   const [recentLists] = useState<RecentTaskListStorageEntry[]>(() => loadRecentListsFromStorage(placeholderRecentLists))
   const recentListSummariesByBoardId: Record<string, RecentTaskListSummary> = {}
-
-  useEffect(() => {
-    saveRecentListsToStorage(recentLists)
-  }, [recentLists])
 
   return (
     <div className="page-layout">
