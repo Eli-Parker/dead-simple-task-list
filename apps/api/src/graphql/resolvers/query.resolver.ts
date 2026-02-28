@@ -37,7 +37,6 @@ export const queryResolvers = {
           t.position AS task_position,
           u.id AS user_id,
           u.name AS user_name,
-          u.password AS user_password,
           u.last_seen AS user_last_seen
         FROM boards b
         LEFT JOIN columns c ON c.board_id = b.id
@@ -91,7 +90,6 @@ export const queryResolvers = {
         usersById.set(row.user_id, {
           id: row.user_id,
           name: row.user_name ?? "",
-          password: row.user_password ?? "",
           board_id: row.board_id,
           last_seen: row.user_last_seen ?? rows[0].board_created_at,
         });

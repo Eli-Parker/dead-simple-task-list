@@ -29,7 +29,6 @@ export const typeDefs = `#graphql
   type Users {
     id: ID!
     name: String!
-    password: String!
     board: Board!
     last_seen: DateTime!
   }

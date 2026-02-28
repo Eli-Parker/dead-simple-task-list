@@ -26,7 +26,6 @@ export type TaskRow = {
 export type UserRow = {
   id: string;
   name: string;
-  password: string;
   board_id: string;
   last_seen: Date;
 };
@@ -47,7 +46,6 @@ export type TaskListByTokenRow = {
   task_position: number | null;
   user_id: string | null;
   user_name: string | null;
-  user_password: string | null;
   user_last_seen: Date | null;
 };
 

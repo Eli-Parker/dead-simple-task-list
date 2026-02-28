@@ -1,13 +1,18 @@
 import { Pool } from "pg";
 
-export function createPool(databaseUrl: string, nodeEnv: string): Pool {
+type CreatePoolConfig = {
+  databaseUrl: string;
+  databaseSsl: boolean;
+  databaseSslRejectUnauthorized: boolean;
+};
+
+export function createPool(config: CreatePoolConfig): Pool {
   return new Pool({
-    connectionString: databaseUrl,
-    ssl:
-      nodeEnv === "production"
-        ? {
-            rejectUnauthorized: false,
-          }
-        : false,
+    connectionString: config.databaseUrl,
+    ssl: config.databaseSsl
+      ? {
+          rejectUnauthorized: config.databaseSslRejectUnauthorized,
+        }
+      : false,
   });
 }
