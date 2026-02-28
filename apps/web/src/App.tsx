@@ -1,23 +1,21 @@
 import { useEffect, useState } from 'react'
 import skullIcon from './assets/skull-icon.png'
 import {
-  loadRecentListsFromCookie,
-  saveRecentListsToCookie,
-  type RecentTaskListCookieEntry,
-} from './recentListsCookie'
+  loadRecentListsFromStorage,
+  saveRecentListsToStorage,
+  type RecentTaskListStorageEntry,
+} from './recentListsStorage'
 import './App.css'
 
 type RecentTaskListSummary = {
-  id: string
-  name: string
   taskCount: number
   updatedLabel: string
 }
 
-const placeholderRecentLists: RecentTaskListCookieEntry[] = [
-  { id: 'lorem', name: 'Lorem' },
-  { id: 'ipsum', name: 'Ipsum' },
-  { id: 'dolar', name: 'Dolar' },
+const placeholderRecentLists: RecentTaskListStorageEntry[] = [
+  { id: 'lorem', title: 'Lorem', boardId: 'lorem' },
+  { id: 'ipsum', title: 'Ipsum', boardId: 'ipsum' },
+  { id: 'dolar', title: 'Dolar', boardId: 'dolar' },
 ]
 
 /**
@@ -31,13 +29,25 @@ function formatTaskCount(taskCount: number | null): string {
   return `${taskCount} task${taskCount === 1 ? '' : 's'}`
 }
 
+/**
+ * Creates a board URL using the board ID in the query string segment.
+ *
+ * Example: `/?board-123`.
+ *
+ * @param boardId Board ID for navigation.
+ * @returns Board URL with board ID query string segment.
+ */
+function createBoardLink(boardId: string): string {
+  return `/board?${encodeURIComponent(boardId)}`
+}
+
 function App() {
   const [showBoard, setShowBoard] = useState(false)
-  const [recentLists] = useState<RecentTaskListCookieEntry[]>(() => loadRecentListsFromCookie(placeholderRecentLists))
-  const recentListSummariesById: Record<string, Pick<RecentTaskListSummary, 'taskCount' | 'updatedLabel'>> = {}
+  const [recentLists] = useState<RecentTaskListStorageEntry[]>(() => loadRecentListsFromStorage(placeholderRecentLists))
+  const recentListSummariesByBoardId: Record<string, RecentTaskListSummary> = {}
 
   useEffect(() => {
-    saveRecentListsToCookie(recentLists)
+    saveRecentListsToStorage(recentLists)
   }, [recentLists])
 
   return (
@@ -72,11 +82,11 @@ function App() {
             <div className="card board-card">
               <h2 className="board-title">Recents</h2>
               {recentLists.map((list) => (
-                <p key={list.id} className="intro recent-item">
-                  <span>{list.name}</span>
-                  <span className="recent-item-center">{formatTaskCount(recentListSummariesById[list.id]?.taskCount ?? null)}</span>
-                  <span className="recent-item-right">{recentListSummariesById[list.id]?.updatedLabel ?? 'Loading...'}</span>
-                </p>
+                <a key={list.id} href={createBoardLink(list.boardId)} className="intro recent-item recent-item-link">
+                  <span>{list.title}</span>
+                  <span className="recent-item-center">{formatTaskCount(recentListSummariesByBoardId[list.boardId]?.taskCount ?? null)}</span>
+                  <span className="recent-item-right">{recentListSummariesByBoardId[list.boardId]?.updatedLabel ?? 'Loading...'}</span>
+                </a>
               ))}
               <button className="recent-list-button" onClick={() => setShowBoard(false)}>
                 Back
