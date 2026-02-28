@@ -20,7 +20,7 @@ People likely won't use this for a big project, maybe some basic projects. They 
 		1. User opens link
 		2. Inputs name (and optional session and user password)
 		3. Profit!
-- Saves any lists you were in through cookies or something so you don't need to go searching for it
+- Saves any lists you were in through local storage so you don't need to go searching for it
 - Option to sign in with google and track what boards you've added (not required)
 - Ability to export to markdown for the obsidian Kanban extension
 
@@ -137,4 +137,3 @@ CREATE INDEX idx_tasks_list_archived ON tasks (task_list_id, archived);
 
 ```
 </details>
-
