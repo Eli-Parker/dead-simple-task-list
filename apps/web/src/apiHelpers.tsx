@@ -211,23 +211,64 @@ export async function getBoardById(
  * Planned return mapping:
  * returns the joined/created user's `id` field as a string.
  *
- * Current implementation is intentionally empty while we build helpers
- * one at a time; it always returns `null`.
- *
  * @param boardLinkToken Board link token the user is joining.
  * @param userName Display name for the user.
  * @param password Optional password for user identity on this board.
- * @returns Promise resolving to the user ID, or `null` in placeholder state.
+ * @returns Promise resolving to the user ID, or `null` if the operation fails.
  */
 export async function addUserToBoard(
   boardLinkToken: string,
   userName: string,
   password?: string,
 ): Promise<string | null> {
-  void boardLinkToken
-  void userName
-  void password
-  return null
+  const board = await getBoardById(boardLinkToken)
+  if (!board) {
+    return null
+  }
+
+  const mutationName = apiResolvers.mutation.joinBoard
+  const mutation = `
+    mutation AddUserToBoard($input: JoinBoardInput!) {
+      ${mutationName}(input: $input) {
+        id
+      }
+    }
+  `
+
+  try {
+    const response = await fetch(GRAPHQL_API_URL, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        query: mutation,
+        variables: {
+          input: {
+            board_id: board.id,
+            name: userName,
+            password,
+          },
+        },
+      }),
+    })
+
+    if (!response.ok) {
+      return null
+    }
+
+    const payload = (await response.json()) as GraphQLResponse<
+      Record<string, { id: string } | null | undefined>
+    >
+
+    if (payload.errors?.length) {
+      return null
+    }
+
+    return payload.data?.[mutationName]?.id ?? null
+  } catch {
+    return null
+  }
 }
 
 /**
@@ -245,23 +286,64 @@ export async function addUserToBoard(
  * Planned return mapping:
  * returns the created column's `id` field as a string.
  *
- * Current implementation is intentionally empty while we build helpers
- * one at a time; it always returns `null`.
- *
  * @param columnName Human-readable column title.
  * @param boardLinkToken Board link token for the board the new column belongs to.
  * @param columnPosition Zero-based position/index for column ordering.
- * @returns Promise resolving to the created column ID, or `null` in placeholder state.
+ * @returns Promise resolving to the created column ID, or `null` if creation fails.
  */
 export async function createColumn(
   columnName: string,
   boardLinkToken: string,
   columnPosition: number,
 ): Promise<string | null> {
-  void columnName
-  void boardLinkToken
-  void columnPosition
-  return null
+  const board = await getBoardById(boardLinkToken)
+  if (!board) {
+    return null
+  }
+
+  const mutationName = apiResolvers.mutation.createColumn
+  const mutation = `
+    mutation CreateColumn($input: CreateColumnInput!) {
+      ${mutationName}(input: $input) {
+        id
+      }
+    }
+  `
+
+  try {
+    const response = await fetch(GRAPHQL_API_URL, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        query: mutation,
+        variables: {
+          input: {
+            board_id: board.id,
+            title: columnName,
+            position: columnPosition,
+          },
+        },
+      }),
+    })
+
+    if (!response.ok) {
+      return null
+    }
+
+    const payload = (await response.json()) as GraphQLResponse<
+      Record<string, { id: string } | null | undefined>
+    >
+
+    if (payload.errors?.length) {
+      return null
+    }
+
+    return payload.data?.[mutationName]?.id ?? null
+  } catch {
+    return null
+  }
 }
 
 /**
@@ -278,20 +360,69 @@ export async function createColumn(
  * the current API `moveColumn` resolver also expects `input.board_id`.
  * This helper intentionally captures only the requested contract for now.
  *
- * Current implementation is intentionally empty while we build helpers
- * one at a time; it always returns `null`.
- *
  * @param columnId Column identifier to modify.
  * @param newColumnPosition New zero-based position/index for this column.
- * @returns Promise resolving to `null` as placeholder output.
+ * @returns Promise resolving to `null` after attempting the operation.
  */
 export async function modifyColumn(
   columnId: string,
   newColumnPosition: number,
 ): Promise<null> {
-  void columnId
-  void newColumnPosition
-  return null
+  const boardLinkToken =
+    typeof window === 'undefined' ? '' : window.location.search.replace(/^\?/, '')
+
+  if (!boardLinkToken) {
+    return null
+  }
+
+  const board = await getBoardById(boardLinkToken)
+  if (!board) {
+    return null
+  }
+
+  const mutationName = apiResolvers.mutation.moveColumn
+  const mutation = `
+    mutation MoveColumn($input: MoveColumnInput!) {
+      ${mutationName}(input: $input) {
+        id
+      }
+    }
+  `
+
+  try {
+    const response = await fetch(GRAPHQL_API_URL, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        query: mutation,
+        variables: {
+          input: {
+            id: columnId,
+            board_id: board.id,
+            position: newColumnPosition,
+          },
+        },
+      }),
+    })
+
+    if (!response.ok) {
+      return null
+    }
+
+    const payload = (await response.json()) as GraphQLResponse<
+      Record<string, { id: string } | null | undefined>
+    >
+
+    if (payload.errors?.length) {
+      return null
+    }
+
+    return null
+  } catch {
+    return null
+  }
 }
 
 /**
@@ -310,15 +441,47 @@ export async function modifyColumn(
  * the API currently returns a boolean, but this helper is intentionally
  * modeled as "return nothing" per the requested contract.
  *
- * Current implementation is intentionally empty while we build helpers
- * one at a time; it always returns `null`.
- *
  * @param columnId Column identifier to delete.
- * @returns Promise resolving to `null` as a no-value placeholder.
+ * @returns Promise resolving to `null` after attempting the operation.
  */
 export async function deleteColumn(columnId: string): Promise<null> {
-  void columnId
-  return null
+  const mutationName = apiResolvers.mutation.deleteColumn
+  const mutation = `
+    mutation DeleteColumn($id: ID!) {
+      ${mutationName}(id: $id)
+    }
+  `
+
+  try {
+    const response = await fetch(GRAPHQL_API_URL, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        query: mutation,
+        variables: {
+          id: columnId,
+        },
+      }),
+    })
+
+    if (!response.ok) {
+      return null
+    }
+
+    const payload = (await response.json()) as GraphQLResponse<
+      Record<string, boolean | null | undefined>
+    >
+
+    if (payload.errors?.length) {
+      return null
+    }
+
+    return null
+  } catch {
+    return null
+  }
 }
 
 /**
@@ -351,15 +514,12 @@ export type TaskDetails = {
  * Planned return mapping:
  * returns the created task's `id` field as a string.
  *
- * Current implementation is intentionally empty while we build helpers
- * one at a time; it always returns `null`.
- *
  * @param boardLinkToken Board link token where the task will be created.
  * @param taskName Human-readable task title.
  * @param columnId Column identifier where the task will initially reside.
  * @param taskPosition Zero-based position/index for task ordering in the column.
  * @param createdAt Client-provided creation timestamp for local/workflow usage.
- * @returns Promise resolving to the created task ID, or `null` in placeholder state.
+ * @returns Promise resolving to the created task ID, or `null` if creation fails.
  */
 export async function createTask(
   boardLinkToken: string,
@@ -368,12 +528,57 @@ export async function createTask(
   taskPosition: number,
   createdAt: string,
 ): Promise<string | null> {
-  void boardLinkToken
-  void taskName
-  void columnId
-  void taskPosition
   void createdAt
-  return null
+
+  const board = await getBoardById(boardLinkToken)
+  if (!board) {
+    return null
+  }
+
+  const mutationName = apiResolvers.mutation.createTask
+  const mutation = `
+    mutation CreateTask($input: CreateTaskInput!) {
+      ${mutationName}(input: $input) {
+        id
+      }
+    }
+  `
+
+  try {
+    const response = await fetch(GRAPHQL_API_URL, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        query: mutation,
+        variables: {
+          input: {
+            board_id: board.id,
+            column_id: columnId,
+            title: taskName,
+            position: taskPosition,
+          },
+        },
+      }),
+    })
+
+    if (!response.ok) {
+      return null
+    }
+
+    const payload = (await response.json()) as GraphQLResponse<
+      Record<string, { id: string } | null | undefined>
+    >
+
+    if (payload.errors?.length) {
+      return null
+    }
+
+    return payload.data?.[mutationName]?.id ?? null
+  } catch {
+    return null
+  }
 }
 
 /**
@@ -393,17 +598,84 @@ export async function createTask(
  * - `description` -> `description`
  * - `position` -> `position`
  *
- * Current implementation is intentionally empty while we build helpers
- * one at a time; it always returns `null`.
- *
  * @param taskId Task identifier used to fetch task details.
- * @returns Promise resolving to task details, or `null` in placeholder state.
+ * @returns Promise resolving to task details, or `null` if lookup fails.
  */
 export async function getTaskById(
   taskId: string,
 ): Promise<TaskDetails | null> {
-  void taskId
-  return null
+  const queryName = apiResolvers.query.task
+  const query = `
+    query GetTaskById($id: ID!) {
+      ${queryName}(id: $id) {
+        id
+        title
+        description
+        position
+        column {
+          id
+        }
+        board {
+          id
+        }
+      }
+    }
+  `
+
+  try {
+    const response = await fetch(GRAPHQL_API_URL, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        query,
+        variables: {
+          id: taskId,
+        },
+      }),
+    })
+
+    if (!response.ok) {
+      return null
+    }
+
+    const payload = (await response.json()) as GraphQLResponse<
+      Record<
+        string,
+        | {
+            id: string
+            title: string
+            description: string | null
+            position: number
+            column: { id: string }
+            board: { id: string }
+          }
+        | null
+        | undefined
+      >
+    >
+
+    if (payload.errors?.length) {
+      return null
+    }
+
+    const task = payload.data?.[queryName]
+    if (!task) {
+      return null
+    }
+
+    return {
+      id: task.id,
+      columnId: task.column.id,
+      boardId: task.board.id,
+      title: task.title,
+      description: task.description,
+      position: task.position,
+    }
+  } catch {
+    return null
+  }
 }
 
 /**
@@ -422,23 +694,65 @@ export async function getTaskById(
  * (such as board and position). This helper intentionally captures only
  * the contract requested for now while implementation details are deferred.
  *
- * Current implementation is intentionally empty while we build helpers
- * one at a time; it always returns `null`.
- *
  * @param taskId Task identifier to update.
  * @param newColumnId New column identifier where the task should reside.
  * @param taskPosition Zero-based position/index for task ordering after update.
- * @returns Promise resolving to an update result placeholder, currently `null`.
+ * @returns Promise resolving to `null` after attempting the operation.
  */
 export async function updateTaskColumn(
   taskId: string,
   newColumnId: string,
   taskPosition: number,
 ): Promise<null> {
-  void taskId
-  void newColumnId
-  void taskPosition
-  return null
+  const task = await getTaskById(taskId)
+  if (!task) {
+    return null
+  }
+
+  const mutationName = apiResolvers.mutation.moveTask
+  const mutation = `
+    mutation MoveTask($input: MoveTaskInput!) {
+      ${mutationName}(input: $input) {
+        id
+      }
+    }
+  `
+
+  try {
+    const response = await fetch(GRAPHQL_API_URL, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        query: mutation,
+        variables: {
+          input: {
+            id: taskId,
+            board_id: task.boardId,
+            column_id: newColumnId,
+            position: taskPosition,
+          },
+        },
+      }),
+    })
+
+    if (!response.ok) {
+      return null
+    }
+
+    const payload = (await response.json()) as GraphQLResponse<
+      Record<string, { id: string } | null | undefined>
+    >
+
+    if (payload.errors?.length) {
+      return null
+    }
+
+    return null
+  } catch {
+    return null
+  }
 }
 
 /**
@@ -454,13 +768,45 @@ export async function updateTaskColumn(
  * the API currently returns a boolean, but this helper is intentionally
  * modeled as "return nothing" per the requested contract.
  *
- * Current implementation is intentionally empty while we build helpers
- * one at a time; it always returns `null`.
- *
  * @param taskId Task identifier to delete.
- * @returns Promise resolving to `null` as a no-value placeholder.
+ * @returns Promise resolving to `null` after attempting the operation.
  */
 export async function deleteTask(taskId: string): Promise<null> {
-  void taskId
-  return null
+  const mutationName = apiResolvers.mutation.deleteTask
+  const mutation = `
+    mutation DeleteTask($id: ID!) {
+      ${mutationName}(id: $id)
+    }
+  `
+
+  try {
+    const response = await fetch(GRAPHQL_API_URL, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        query: mutation,
+        variables: {
+          id: taskId,
+        },
+      }),
+    })
+
+    if (!response.ok) {
+      return null
+    }
+
+    const payload = (await response.json()) as GraphQLResponse<
+      Record<string, boolean | null | undefined>
+    >
+
+    if (payload.errors?.length) {
+      return null
+    }
+
+    return null
+  } catch {
+    return null
+  }
 }
