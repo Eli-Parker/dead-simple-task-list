@@ -1,12 +1,26 @@
-import { useState, type Dispatch, type SetStateAction, type FormEvent, type SyntheticEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import './Board.css'
-import { modifyColumn, updateTaskColumn } from './apiHelpers'
+import {
+  addUserToBoard,
+  createBoard,
+  createColumn,
+  createTask,
+  deleteColumn,
+  deleteTask,
+  getBoardById,
+  getTaskById,
+  modifyColumn,
+  updateTaskColumn,
+  type BoardDetails,
+  type TaskDetails,
+} from './apiHelpers'
+import { loadRecentListsFromStorage, saveRecentListsToStorage } from './recentListsStorage'
 
 /**
  * Typing for an individual task
  */
 type TaskCard = {
-  id: number
+  id: string
   title: string
   detail: string
 }
@@ -15,7 +29,7 @@ type TaskCard = {
  * Typing for an entire column
  */
 type BoardColumn = {
-  id: number
+  id: string
   name: string
   cards: TaskCard[]
 }
@@ -27,62 +41,187 @@ type BoardSetup = {
   memberPassword: string
 }
 
-/**
- * Submits the board info to the API
- * @param boardSetup The params for the board setup
- * @param setBoardSetup 
- * @param setIsSetupComplete 
- * @returns 
- */
-function submitBoardSetup(
-  boardSetup: BoardSetup,
-  setBoardSetup: Dispatch<SetStateAction<BoardSetup>>,
-  setIsSetupComplete: Dispatch<SetStateAction<boolean>>,
-) {
+const LOCAL_ID_PREFIX = 'local-'
+const STARTER_COLUMN_NAMES = ['To Do', 'In Progress', 'Done'] as const
+const MAX_RECENT_LISTS = 10
 
-  // Empty names
-  if (!boardSetup.taskListName.trim() || !boardSetup.memberName.trim()) {
-    return
-  }
-
-
-  setBoardSetup((prevSetup) => ({
-    ...prevSetup,
-    taskListName: prevSetup.taskListName.trim(),
-    memberName: prevSetup.memberName.trim(),
-  }))
-
-  // TODO add graphQL query from apiHelpers.tsx
-  setIsSetupComplete(true)
+type FallbackBoardTemplateColumn = {
+  name: string
+  cards: Array<{
+    title: string
+    detail: string
+  }>
 }
 
-/**
- * Add a column to the task list
- * @param columnName The column label
- * @param setColumns the function to set the column state
- */
-function addColumn(
-  columnName: string,
-  setColumns: Dispatch<SetStateAction<BoardColumn[]>>,
-) {
-  const cleanName = columnName.trim()
-  if (!cleanName) {
-    return
+const fallbackBoardTemplate: FallbackBoardTemplateColumn[] = [
+  {
+    name: 'To Do',
+    cards: [
+      {
+        title: 'Plan Sprint Scope',
+        detail: 'Pick the 3 features to ship this week.',
+      },
+      {
+        title: 'Draft Wireframes',
+        detail: 'Create quick first-pass screens for review.',
+      },
+    ],
+  },
+  {
+    name: 'In Progress',
+    cards: [
+      {
+        title: 'Build Task Form',
+        detail: 'Add validation and keyboard submit support.',
+      },
+      {
+        title: 'Column Layout',
+        detail: 'Polish spacing and card density for desktop/mobile.',
+      },
+    ],
+  },
+  {
+    name: 'Done',
+    cards: [
+      {
+        title: 'Project Setup',
+        detail: 'Vite + React app scaffolded and running.',
+      },
+      {
+        title: 'Landing Page',
+        detail: 'Marketing screen connected to root route.',
+      },
+    ],
+  },
+]
+
+function createLocalId(kind: 'board' | 'column' | 'task'): string {
+  return `${LOCAL_ID_PREFIX}${kind}-${crypto.randomUUID()}`
+}
+
+function isLocalId(id: string | null | undefined): boolean {
+  return typeof id === 'string' && id.startsWith(LOCAL_ID_PREFIX)
+}
+
+function parseBoardIdFromLocation(search: string): string | null {
+  if (!search.startsWith('?') || search.length <= 1) {
+    return null
   }
 
-  setColumns((prevColumns) => {
-    const nextColumnId =
-      prevColumns.reduce((maxId, column) => Math.max(maxId, column.id), 0) + 1
+  const encodedBoardId = search.slice(1).trim()
+  if (!encodedBoardId) {
+    return null
+  }
 
-    return [
-      ...prevColumns,
-      {
-        id: nextColumnId,
-        name: cleanName,
-        cards: [],
-      },
-    ]
-  })
+  try {
+    const decodedBoardId = decodeURIComponent(encodedBoardId).trim()
+    return decodedBoardId || null
+  } catch {
+    return encodedBoardId
+  }
+}
+
+function writeBoardIdToLocation(boardId: string): void {
+  const encodedBoardId = encodeURIComponent(boardId)
+  window.history.replaceState({}, '', `/board?${encodedBoardId}`)
+}
+
+function cloneFallbackBoardColumns(): BoardColumn[] {
+  return fallbackBoardTemplate.map((column) => ({
+    id: createLocalId('column'),
+    name: column.name,
+    cards: column.cards.map((card) => ({
+      id: createLocalId('task'),
+      title: card.title,
+      detail: card.detail,
+    })),
+  }))
+}
+
+async function createStarterColumns(boardId: string): Promise<BoardColumn[]> {
+  const createdColumns: BoardColumn[] = []
+
+  for (const [position, columnName] of STARTER_COLUMN_NAMES.entries()) {
+    let createdColumnId: string | null = null
+
+    try {
+      createdColumnId = await createColumn(columnName, boardId, position)
+    } catch {
+      createdColumnId = null
+    }
+
+    createdColumns.push({
+      id: createdColumnId ?? createLocalId('column'),
+      name: columnName,
+      cards: [],
+    })
+  }
+
+  return createdColumns
+}
+
+async function loadColumnsFromBoardDetails(boardDetails: BoardDetails): Promise<BoardColumn[]> {
+  const taskResults = await Promise.all(
+    boardDetails.taskIds.map(async (taskId) => {
+      try {
+        return await getTaskById(taskId)
+      } catch {
+        return null
+      }
+    }),
+  )
+
+  const taskDetails = taskResults.filter((task): task is TaskDetails => task !== null)
+  const tasksByColumnId = new Map<string, TaskDetails[]>()
+
+  for (const task of taskDetails) {
+    const existingTasks = tasksByColumnId.get(task.columnId)
+    if (existingTasks) {
+      existingTasks.push(task)
+    } else {
+      tasksByColumnId.set(task.columnId, [task])
+    }
+  }
+
+  for (const taskGroup of tasksByColumnId.values()) {
+    taskGroup.sort((left, right) => left.position - right.position)
+  }
+
+  const columnsFromBoard = boardDetails.columnIds.map((columnId, index) => ({
+    id: columnId,
+    name: `Column ${index + 1}`,
+    cards: (tasksByColumnId.get(columnId) ?? []).map((task) => ({
+      id: task.id,
+      title: task.title,
+      detail: task.description ?? '',
+    })),
+  }))
+
+  const knownColumnIds = new Set(boardDetails.columnIds)
+  for (const [columnId, taskGroup] of tasksByColumnId.entries()) {
+    if (knownColumnIds.has(columnId)) {
+      continue
+    }
+
+    columnsFromBoard.push({
+      id: columnId,
+      name: 'Unassigned',
+      cards: taskGroup.map((task) => ({
+        id: task.id,
+        title: task.title,
+        detail: task.description ?? '',
+      })),
+    })
+  }
+
+  return columnsFromBoard
+}
+
+function saveRecentBoard(title: string, boardId: string): void {
+  const existingEntries = loadRecentListsFromStorage([])
+  const dedupedEntries = existingEntries.filter((entry) => entry.boardId !== boardId)
+  const nextEntries = [{ title, boardId }, ...dedupedEntries].slice(0, MAX_RECENT_LISTS)
+  saveRecentListsToStorage(nextEntries)
 }
 
 /**
@@ -91,17 +230,21 @@ function addColumn(
  * @returns The entire /board page
  */
 export default function BoardPage() {
-  const [columns, setColumns] = useState<BoardColumn[]>(boardColumns)
-  const [newTaskTitles, setNewTaskTitles] = useState<Record<number, string>>({})
-  const [taskTitleDrafts, setTaskTitleDrafts] = useState<Record<number, string>>({})
-  const [taskDetailDrafts, setTaskDetailDrafts] = useState<Record<number, string>>({})
-  const [editingTaskId, setEditingTaskId] = useState<number | null>(null)
-  const [draggingColumnId, setDraggingColumnId] = useState<number | null>(null)
-  const [dragOverColumnId, setDragOverColumnId] = useState<number | null>(null)
-  const [draggingTask, setDraggingTask] = useState<{ taskId: number, sourceColumnId: number } | null>(null)
-  const [taskDropTarget, setTaskDropTarget] = useState<{ columnId: number, index: number } | null>(null)
+  const [columns, setColumns] = useState<BoardColumn[]>([])
+  const [boardId, setBoardId] = useState<string | null>(null)
+  const [newTaskTitles, setNewTaskTitles] = useState<Record<string, string>>({})
+  const [taskTitleDrafts, setTaskTitleDrafts] = useState<Record<string, string>>({})
+  const [taskDetailDrafts, setTaskDetailDrafts] = useState<Record<string, string>>({})
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null)
+  const [draggingColumnId, setDraggingColumnId] = useState<string | null>(null)
+  const [dragOverColumnId, setDragOverColumnId] = useState<string | null>(null)
+  const [draggingTask, setDraggingTask] = useState<{ taskId: string, sourceColumnId: string } | null>(null)
+  const [taskDropTarget, setTaskDropTarget] = useState<{ columnId: string, index: number } | null>(null)
   const [newColumnName, setNewColumnName] = useState('')
+  const [toastMessage, setToastMessage] = useState('')
   const [isSetupComplete, setIsSetupComplete] = useState(false)
+  const [isSubmittingSetup, setIsSubmittingSetup] = useState(false)
+  const [requestedBoardId] = useState<string | null>(() => parseBoardIdFromLocation(window.location.search))
   const [boardSetup, setBoardSetup] = useState<BoardSetup>({
     taskListName: '',
     taskListPassword: '',
@@ -109,12 +252,119 @@ export default function BoardPage() {
     memberPassword: '',
   })
 
-  const handleSetupSubmit = (event: SyntheticEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    submitBoardSetup(boardSetup, setBoardSetup, setIsSetupComplete)
+  useEffect(() => {
+    if (!requestedBoardId) {
+      return
+    }
+
+    let cancelled = false
+
+    void (async () => {
+      try {
+        const boardDetails = await getBoardById(requestedBoardId)
+        if (!boardDetails || cancelled) {
+          return
+        }
+
+        setBoardSetup((prevSetup) => ({
+          ...prevSetup,
+          taskListName: prevSetup.taskListName.trim() || boardDetails.title,
+        }))
+      } catch {
+        // Leave setup title untouched on prefetch errors.
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [requestedBoardId])
+
+  const submitBoardSetup = async (): Promise<void> => {
+    if (isSubmittingSetup) {
+      return
+    }
+
+    const cleanTaskListName = boardSetup.taskListName.trim()
+    const cleanMemberName = boardSetup.memberName.trim()
+    if (!cleanTaskListName || !cleanMemberName) {
+      return
+    }
+
+    setIsSubmittingSetup(true)
+
+    try {
+      let resolvedBoardId = requestedBoardId
+      let resolvedTitle = cleanTaskListName
+      let resolvedColumns: BoardColumn[] = []
+
+      if (resolvedBoardId) {
+        try {
+          const boardDetails = await getBoardById(resolvedBoardId)
+          if (boardDetails) {
+            resolvedTitle = boardDetails.title
+            resolvedColumns = await loadColumnsFromBoardDetails(boardDetails)
+          }
+        } catch {
+          setToastMessage('Could not load board from API. Using local data.')
+        }
+
+        if (resolvedColumns.length === 0) {
+          resolvedColumns = cloneFallbackBoardColumns()
+        }
+      } else {
+        let createdBoardId: string | null = null
+
+        try {
+          createdBoardId = await createBoard(cleanTaskListName)
+        } catch {
+          createdBoardId = null
+          setToastMessage('Could not create board in API. Using local board.')
+        }
+
+        resolvedBoardId = createdBoardId ?? createLocalId('board')
+        writeBoardIdToLocation(resolvedBoardId)
+
+        if (createdBoardId) {
+          resolvedColumns = await createStarterColumns(createdBoardId)
+        } else {
+          resolvedColumns = cloneFallbackBoardColumns()
+        }
+      }
+
+      setColumns(resolvedColumns)
+      setBoardId(resolvedBoardId)
+      setBoardSetup((prevSetup) => ({
+        ...prevSetup,
+        taskListName: resolvedTitle,
+        memberName: cleanMemberName,
+      }))
+      setIsSetupComplete(true)
+
+      if (resolvedBoardId && !isLocalId(resolvedBoardId)) {
+        try {
+          await addUserToBoard(
+            resolvedBoardId,
+            cleanMemberName,
+            boardSetup.memberPassword.trim() || undefined,
+          )
+        } catch {
+          setToastMessage('Board opened, but joining as a user failed.')
+        }
+
+        saveRecentBoard(resolvedTitle, resolvedBoardId)
+      }
+    } finally {
+      setIsSubmittingSetup(false)
+    }
   }
 
-  const handleTaskSubmit = (event: FormEvent<HTMLFormElement>, columnId: number) => {
+  const handleSetupSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    void submitBoardSetup()
+  }
+
+  const handleTaskSubmit = (event: FormEvent<HTMLFormElement>, columnId: string) => {
     event.preventDefault()
     const title = newTaskTitles[columnId] ?? ''
     const cleanTitle = title.trim()
@@ -122,49 +372,119 @@ export default function BoardPage() {
       return
     }
 
-    const nextTaskId = columns
-      .flatMap((column) => column.cards)
-      .reduce((maxId, card) => Math.max(maxId, card.id), 0) + 1
+    void (async () => {
+      const targetColumn = columns.find((column) => column.id === columnId)
+      const nextPosition = targetColumn ? targetColumn.cards.length : 0
+      let nextTaskId: string | null = null
 
-    setColumns((prevColumns) =>
-      prevColumns.map((column) => {
-        if (column.id !== columnId) {
-          return column
+      if (boardId && !isLocalId(boardId) && !isLocalId(columnId)) {
+        try {
+          nextTaskId = await createTask(
+            boardId,
+            cleanTitle,
+            columnId,
+            nextPosition,
+            new Date().toISOString(),
+          )
+        } catch {
+          nextTaskId = null
+          setToastMessage('Could not create task in API. Saved locally.')
         }
+      }
 
-        return {
-          ...column,
-          cards: [
-            ...column.cards,
-            {
-              id: nextTaskId,
-              title: cleanTitle,
-              detail: '',
-            },
-          ],
-        }
-      }),
-    )
+      const resolvedTaskId = nextTaskId ?? createLocalId('task')
 
-    setNewTaskTitles((prevTitles) => ({
-      ...prevTitles,
-      [columnId]: '',
-    }))
-    setTaskTitleDrafts((prevDrafts) => ({
-      ...prevDrafts,
-      [nextTaskId]: cleanTitle,
-    }))
-    setTaskDetailDrafts((prevDrafts) => ({
-      ...prevDrafts,
-      [nextTaskId]: '',
-    }))
-    setEditingTaskId(nextTaskId)
+      setColumns((prevColumns) =>
+        prevColumns.map((column) => {
+          if (column.id !== columnId) {
+            return column
+          }
+
+          return {
+            ...column,
+            cards: [
+              ...column.cards,
+              {
+                id: resolvedTaskId,
+                title: cleanTitle,
+                detail: '',
+              },
+            ],
+          }
+        }),
+      )
+
+      setNewTaskTitles((prevTitles) => ({
+        ...prevTitles,
+        [columnId]: '',
+      }))
+      setTaskTitleDrafts((prevDrafts) => ({
+        ...prevDrafts,
+        [resolvedTaskId]: cleanTitle,
+      }))
+      setTaskDetailDrafts((prevDrafts) => ({
+        ...prevDrafts,
+        [resolvedTaskId]: '',
+      }))
+      setEditingTaskId(resolvedTaskId)
+    })()
   }
 
   const handleColumnSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    addColumn(newColumnName, setColumns)
-    setNewColumnName('')
+    const cleanName = newColumnName.trim()
+    if (!cleanName) {
+      return
+    }
+
+    void (async () => {
+      const nextPosition = columns.length
+      let createdColumnId: string | null = null
+
+      if (boardId && !isLocalId(boardId)) {
+        try {
+          createdColumnId = await createColumn(cleanName, boardId, nextPosition)
+        } catch {
+          createdColumnId = null
+          setToastMessage('Could not create column in API. Saved locally.')
+        }
+      }
+
+      setColumns((prevColumns) => ([
+        ...prevColumns,
+        {
+          id: createdColumnId ?? createLocalId('column'),
+          name: cleanName,
+          cards: [],
+        },
+      ]))
+      setNewColumnName('')
+    })()
+  }
+
+  useEffect(() => {
+    if (!toastMessage) {
+      return
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setToastMessage('')
+    }, 2200)
+
+    return () => {
+      window.clearTimeout(timeoutId)
+    }
+  }, [toastMessage])
+
+  const handleShare = async () => {
+    const currentLink = window.location.href
+
+    try {
+      await navigator.clipboard.writeText(currentLink)
+      setToastMessage('Link copied to clipboard!')
+    } catch {
+      setToastMessage('Could not copy link.')
+    }
   }
 
   const handleEditStart = (card: TaskCard) => {
@@ -179,14 +499,14 @@ export default function BoardPage() {
     setEditingTaskId(card.id)
   }
 
-  const handleEditCancel = (cardId: number) => {
+  const handleEditCancel = (cardId: string) => {
     setEditingTaskId((prevId) => (prevId === cardId ? null : prevId))
   }
 
   const handleDetailSave = (
     event: FormEvent<HTMLFormElement>,
-    columnId: number,
-    cardId: number,
+    columnId: string,
+    cardId: string,
   ) => {
     event.preventDefault()
     const updatedTitle = (taskTitleDrafts[cardId] ?? '').trim()
@@ -218,7 +538,7 @@ export default function BoardPage() {
     setEditingTaskId((prevId) => (prevId === cardId ? null : prevId))
   }
 
-  const handleColumnDragStart = (columnId: number) => {
+  const handleColumnDragStart = (columnId: string) => {
     setDraggingColumnId(columnId)
     setDragOverColumnId(columnId)
   }
@@ -228,7 +548,7 @@ export default function BoardPage() {
     setDragOverColumnId(null)
   }
 
-  const handleColumnDrop = (targetColumnId: number) => {
+  const handleColumnDrop = (targetColumnId: string) => {
     if (draggingColumnId === null || draggingColumnId === targetColumnId) {
       setDragOverColumnId(null)
       return
@@ -254,11 +574,16 @@ export default function BoardPage() {
       return nextColumns
     })
 
-    void modifyColumn(String(draggingColumnId), nextPosition)
+    if (boardId && !isLocalId(boardId) && !isLocalId(draggingColumnId)) {
+      void modifyColumn(draggingColumnId, nextPosition).catch(() => {
+        setToastMessage('Could not move column in API.')
+      })
+    }
+
     setDragOverColumnId(null)
   }
 
-  const handleTaskDragStart = (taskId: number, sourceColumnId: number) => {
+  const handleTaskDragStart = (taskId: string, sourceColumnId: string) => {
     setDraggingTask({ taskId, sourceColumnId })
   }
 
@@ -268,7 +593,7 @@ export default function BoardPage() {
   }
 
   const handleTaskMove = (
-    targetColumnId: number,
+    targetColumnId: string,
     targetIndex: number,
   ) => {
     if (!draggingTask) {
@@ -324,9 +649,75 @@ export default function BoardPage() {
       })
     })
 
-    void updateTaskColumn(String(draggingTask.taskId), String(targetColumnId), targetIndex)
+    if (
+      boardId &&
+      !isLocalId(boardId) &&
+      !isLocalId(draggingTask.taskId) &&
+      !isLocalId(targetColumnId)
+    ) {
+      void updateTaskColumn(draggingTask.taskId, targetColumnId, targetIndex).catch(() => {
+        setToastMessage('Could not move task in API.')
+      })
+    }
+
     setDraggingTask(null)
     setTaskDropTarget(null)
+  }
+
+  const handleTaskDelete = async (columnId: string, taskId: string): Promise<void> => {
+    setColumns((prevColumns) =>
+      prevColumns.map((column) => {
+        if (column.id !== columnId) {
+          return column
+        }
+
+        return {
+          ...column,
+          cards: column.cards.filter((card) => card.id !== taskId),
+        }
+      }),
+    )
+    setTaskTitleDrafts((prevDrafts) => {
+      const nextDrafts = { ...prevDrafts }
+      delete nextDrafts[taskId]
+      return nextDrafts
+    })
+    setTaskDetailDrafts((prevDrafts) => {
+      const nextDrafts = { ...prevDrafts }
+      delete nextDrafts[taskId]
+      return nextDrafts
+    })
+    setEditingTaskId((prevId) => (prevId === taskId ? null : prevId))
+
+    if (!isLocalId(taskId)) {
+      try {
+        await deleteTask(taskId)
+      } catch {
+        setToastMessage('Could not delete task in API. Removed locally.')
+      }
+    }
+  }
+
+  const handleColumnDelete = async (columnId: string): Promise<void> => {
+    setColumns((prevColumns) => prevColumns.filter((column) => column.id !== columnId))
+    setNewTaskTitles((prevTitles) => {
+      const nextTitles = { ...prevTitles }
+      delete nextTitles[columnId]
+      return nextTitles
+    })
+    setTaskDropTarget((prevTarget) => (
+      prevTarget && prevTarget.columnId === columnId
+        ? null
+        : prevTarget
+    ))
+
+    if (!isLocalId(columnId)) {
+      try {
+        await deleteColumn(columnId)
+      } catch {
+        setToastMessage('Could not delete column in API. Removed locally.')
+      }
+    }
   }
 
   return (
@@ -394,7 +785,13 @@ export default function BoardPage() {
               }
             />
 
-            <button type="submit" className="board-button board-setup-submit">Continue</button>
+            <button
+              type="submit"
+              className="board-button board-setup-submit"
+              disabled={isSubmittingSetup}
+            >
+              {isSubmittingSetup ? 'Saving...' : 'Continue'}
+            </button>
           </form>
         </div>
       )}
@@ -408,7 +805,7 @@ export default function BoardPage() {
             <p className="board-member">Signed in as {boardSetup.memberName}</p>
           )}
         </div>
-        <button type="button" className="board-button">
+        <button type="button" className="board-button" onClick={() => void handleShare()}>
           <svg className="board-share-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" >
             <path d="M14 3h7v7" /> <path d="M10 14 21 3" /> <path d="M21 14v7H3V3h7" />
           </svg>
@@ -442,6 +839,14 @@ export default function BoardPage() {
               <h2 className="board-column-title">{column.name}</h2>
               <div className="board-column-actions">
                 <span className="board-count-pill">{column.cards.length}</span>
+                <button
+                  type="button"
+                  className="board-task-button board-task-button-subtle"
+                  onClick={() => void handleColumnDelete(column.id)}
+                  aria-label={`Delete column ${column.name}`}
+                >
+                  Delete
+                </button>
                 <button
                   type="button"
                   className="board-column-drag-handle"
@@ -577,6 +982,13 @@ export default function BoardPage() {
                         >
                           Cancel
                         </button>
+                        <button
+                          type="button"
+                          className="board-task-button board-task-button-subtle"
+                          onClick={() => void handleTaskDelete(column.id, card.id)}
+                        >
+                          Delete
+                        </button>
                       </div>
                     </form>
                   ) : (
@@ -637,60 +1049,12 @@ export default function BoardPage() {
           </form>
         </article>
       </section>
+
+      {toastMessage && (
+        <div className="board-toast" role="status" aria-live="polite">
+          {toastMessage}
+        </div>
+      )}
     </main>
   )
 }
-
-/**
- * Temp until db gets setup
- */
-const boardColumns: BoardColumn[] = [
-  {
-    id: 1,
-    name: 'To Do',
-    cards: [
-      {
-        id: 101,
-        title: 'Plan Sprint Scope',
-        detail: 'Pick the 3 features to ship this week.',
-      },
-      {
-        id: 102,
-        title: 'Draft Wireframes',
-        detail: 'Create quick first-pass screens for review.',
-      },
-    ],
-  },
-  {
-    id: 2,
-    name: 'In Progress',
-    cards: [
-      {
-        id: 201,
-        title: 'Build Task Form',
-        detail: 'Add validation and keyboard submit support.',
-      },
-      {
-        id: 202,
-        title: 'Column Layout',
-        detail: 'Polish spacing and card density for desktop/mobile.',
-      },
-    ],
-  },
-  {
-    id: 3,
-    name: 'Done',
-    cards: [
-      {
-        id: 301,
-        title: 'Project Setup',
-        detail: 'Vite + React app scaffolded and running.',
-      },
-      {
-        id: 302,
-        title: 'Landing Page',
-        detail: 'Marketing screen connected to root route.',
-      },
-    ],
-  },
-]

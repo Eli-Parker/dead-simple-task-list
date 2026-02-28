@@ -392,3 +392,17 @@
   font-size: 0.82rem;
   opacity: 0.75;
 }
+
+.board-toast {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 1100;
+  border: 1px solid #3a3a3a;
+  border-radius: 10px;
+  padding: 0.55rem 0.75rem;
+  background: #1f1f1f;
+  font-size: 0.82rem;
+  line-height: 1.25;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+}
