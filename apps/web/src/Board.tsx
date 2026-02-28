@@ -11,6 +11,7 @@ import {
   getTaskById,
   modifyColumn,
   updateColumnTitle,
+  updateTask,
   updateTaskColumn,
   type BoardDetails,
   type TaskDetails,
@@ -388,6 +389,7 @@ export default function BoardPage() {
             boardId,
             cleanTitle,
             columnId,
+            undefined,
             nextPosition,
             new Date().toISOString(),
           )
@@ -541,6 +543,12 @@ export default function BoardPage() {
       }),
     )
     setEditingTaskId((prevId) => (prevId === cardId ? null : prevId))
+
+    if (boardId && !isLocalId(boardId) && !isLocalId(cardId)) {
+      void updateTask(cardId, updatedTitle, updatedDetail).catch(() => {
+        setToastMessage('Could not update task details in API. Saved locally.')
+      })
+    }
   }
 
   const handleColumnDragStart = (columnId: string) => {
@@ -883,46 +891,50 @@ export default function BoardPage() {
             }}
           >
             <div className="board-column-header">
-              {editingColumnId === column.id ? (
-                <form
-                  className="board-column-title-form"
-                  onSubmit={(event) => handleColumnEditSave(event, column.id)}
-                >
-                  <input
-                    className="board-column-title-input"
-                    type="text"
-                    value={columnNameDrafts[column.id] ?? ''}
-                    onChange={(event) =>
-                      setColumnNameDrafts((prevDrafts) => ({
-                        ...prevDrafts,
-                        [column.id]: event.target.value,
-                      }))
-                    }
-                    aria-label={`Column name for ${column.name}`}
-                    autoFocus
-                  />
-                  <div className="board-column-title-actions">
-                    <button
-                      type="submit"
-                      className="board-task-button"
-                      disabled={!(columnNameDrafts[column.id] ?? '').trim()}
-                    >
-                      Save
-                    </button>
-                    <button
-                      type="button"
-                      className="board-task-button board-task-button-subtle"
-                      onClick={() => handleColumnEditCancel(column.id)}
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </form>
-              ) : (
-                <h2 className="board-column-title">{column.name}</h2>
-              )}
+              <div className="board-column-title-row">
+                {editingColumnId === column.id ? (
+                  <form
+                    className="board-column-title-form"
+                    onSubmit={(event) => handleColumnEditSave(event, column.id)}
+                  >
+                    <input
+                      className="board-column-title-input"
+                      type="text"
+                      value={columnNameDrafts[column.id] ?? ''}
+                      onChange={(event) =>
+                        setColumnNameDrafts((prevDrafts) => ({
+                          ...prevDrafts,
+                          [column.id]: event.target.value,
+                        }))
+                      }
+                      aria-label={`Column name for ${column.name}`}
+                      autoFocus
+                    />
+                    <div className="board-column-title-actions">
+                      <button
+                        type="submit"
+                        className="board-task-button"
+                        disabled={!(columnNameDrafts[column.id] ?? '').trim()}
+                      >
+                        Save
+                      </button>
+                      <button
+                        type="button"
+                        className="board-task-button board-task-button-subtle"
+                        onClick={() => handleColumnEditCancel(column.id)}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </form>
+                ) : (
+                  <>
+                    <h2 className="board-column-title">{column.name}</h2>
+                    <span className="board-count-pill">{column.cards.length}</span>
+                  </>
+                )}
+              </div>
               <div className="board-column-actions">
-                <span className="board-count-pill">{column.cards.length}</span>
                 {editingColumnId !== column.id && (
                   <button
                     type="button"

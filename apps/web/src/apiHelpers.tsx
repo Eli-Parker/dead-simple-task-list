@@ -579,6 +579,7 @@ export type TaskDetails = {
  * - looked-up `board.id` -> `input.board_id`
  * - `columnId` -> `input.column_id`
  * - `taskName` -> `input.title`
+ * - `taskDescription` -> `input.description` (optional)
  * - `taskPosition` -> `input.position`
  * - `createdAt` is accepted by this helper contract for client-side task creation
  *   metadata, but current API mutation does not expose a `created_at` input field.
@@ -589,6 +590,7 @@ export type TaskDetails = {
  * @param boardLinkToken Board link token where the task will be created.
  * @param taskName Human-readable task title.
  * @param columnId Column identifier where the task will initially reside.
+ * @param taskDescription Optional task description.
  * @param taskPosition Zero-based position/index for task ordering in the column.
  * @param createdAt Client-provided creation timestamp for local/workflow usage.
  * @returns Promise resolving to the created task ID, or `null` if creation fails.
@@ -597,6 +599,7 @@ export async function createTask(
   boardLinkToken: string,
   taskName: string,
   columnId: string,
+  taskDescription: string | null | undefined,
   taskPosition: number,
   createdAt: string,
 ): Promise<string | null> {
@@ -629,6 +632,7 @@ export async function createTask(
             board_id: board.id,
             column_id: columnId,
             title: taskName,
+            description: taskDescription,
             position: taskPosition,
           },
         },
@@ -648,6 +652,80 @@ export async function createTask(
     }
 
     return payload.data?.[mutationName]?.id ?? null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Updates an existing task title and/or description.
+ *
+ * Planned API resolver target:
+ * `Mutation.updateTask`
+ *
+ * Planned GraphQL input mapping:
+ * - `taskId` -> `input.id`
+ * - `taskTitle` -> `input.title` (optional)
+ * - `taskDescription` -> `input.description` (optional)
+ *
+ * @param taskId Task identifier to update.
+ * @param taskTitle Optional new task title.
+ * @param taskDescription Optional new task description.
+ * @returns Promise resolving to `null` after attempting the operation.
+ */
+export async function updateTask(
+  taskId: string,
+  taskTitle?: string,
+  taskDescription?: string,
+): Promise<null> {
+  const mutationName = apiResolvers.mutation.updateTask
+  const mutation = `
+    mutation UpdateTask($input: UpdateTaskInput!) {
+      ${mutationName}(input: $input) {
+        id
+      }
+    }
+  `
+
+  const input: Record<string, string> = {
+    id: taskId,
+  }
+
+  if (taskTitle !== undefined) {
+    input.title = taskTitle
+  }
+
+  if (taskDescription !== undefined) {
+    input.description = taskDescription
+  }
+
+  try {
+    const response = await fetch(GRAPHQL_API_URL, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        query: mutation,
+        variables: {
+          input,
+        },
+      }),
+    })
+
+    if (!response.ok) {
+      return null
+    }
+
+    const payload = (await response.json()) as GraphQLResponse<
+      Record<string, { id: string } | null | undefined>
+    >
+
+    if (payload.errors?.length) {
+      return null
+    }
+
+    return null
   } catch {
     return null
   }
