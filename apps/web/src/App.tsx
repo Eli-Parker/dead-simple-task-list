@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import skullIcon from './assets/skull-icon.png'
-import { getBoardById } from './apiHelpers'
 import {
   loadRecentListsFromStorage,
   type RecentTaskListStorageEntry,
@@ -41,17 +40,6 @@ function App() {
   const [recentLists] = useState<RecentTaskListStorageEntry[]>(() => loadRecentListsFromStorage())
   const recentListSummariesByBoardId: Record<string, RecentTaskListSummary> = {}
 
-  const handleCreateBoardClick = async () => {
-    const boardId = 'a6382f6cbd59921bdfcd7760'
-    const board = await getBoardById(boardId)
-    if (!board) {
-      console.log('Board not found')
-      return
-    }
-
-    window.location.assign(createBoardLink(board.linkToken))
-  }
-
   useEffect(() => {
     const mediaQuery = window.matchMedia('(max-width: 900px)')
     const handleMediaQueryChange = (event: MediaQueryListEvent) => {
@@ -81,7 +69,7 @@ function App() {
                     className="started-button"
                     type="button"
                     onClick={() => {
-                      void handleCreateBoardClick()
+                      window.location.assign('/board?')
                     }}
                   >
                     New Board
