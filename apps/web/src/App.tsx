@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import skullIcon from './assets/skull-icon.png'
 import {
   loadRecentListsFromStorage,
@@ -35,9 +35,22 @@ function createBoardLink(boardId: string): string {
 }
 
 function App() {
+  const [isMobile, setIsMobile] = useState(() => window.matchMedia('(max-width: 900px)').matches)
   const [showBoard, setShowBoard] = useState(false)
   const [recentLists] = useState<RecentTaskListStorageEntry[]>(() => loadRecentListsFromStorage())
   const recentListSummariesByBoardId: Record<string, RecentTaskListSummary> = {}
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(max-width: 900px)')
+    const handleMediaQueryChange = (event: MediaQueryListEvent) => {
+      setIsMobile(event.matches)
+    }
+
+    mediaQuery.addEventListener('change', handleMediaQueryChange)
+    return () => {
+      mediaQuery.removeEventListener('change', handleMediaQueryChange)
+    }
+  }, [])
 
   return (
     <div className="page-layout">
@@ -95,16 +108,18 @@ function App() {
         </div>
       </section>
 
-      <aside className="right-pane">
-        <div className="right-pane-content">
-          <h2>Organize:</h2>
-          <ul className="organize-list">
-            <li>Hackathons</li>
-            <li>Work projects</li>
-            <li>Anything you want!</li>
-          </ul>
-        </div>
-      </aside>
+      {!isMobile && (
+        <aside className="right-pane">
+          <div className="right-pane-content">
+            <h2>Organize:</h2>
+            <ul className="organize-list">
+              <li>Hackathons</li>
+              <li>Work projects</li>
+              <li>Anything you want!</li>
+            </ul>
+          </div>
+        </aside>
+      )}
     </div>
   )
 }
