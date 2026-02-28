@@ -12,7 +12,7 @@ export const apiResolvers = {
   mutation: mutationResolvers,
 } as const
 
-const GRAPHQL_API_URL = import.meta.env.VITE_API_URL ?? 'http://db.deadsimpletasks.app'
+const GRAPHQL_API_URL = import.meta.env.VITE_API_URL ?? 'https://db.deadsimpletasks.app'
 
 type GraphQLResponse<TData> = {
   data?: TData | null
