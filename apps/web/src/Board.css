@@ -119,6 +119,27 @@
   gap: 0.5rem;
 }
 
+.board-column-drag-handle {
+  border-radius: 8px;
+  border: 1px solid #3a3a3a;
+  padding: 0.12rem 0.45rem;
+  font-size: 0.78rem;
+  line-height: 1.1;
+  background: rgba(255, 255, 255, 0.05);
+  color: inherit;
+  cursor: grab;
+}
+
+.board-column-drag-handle:active {
+  cursor: grabbing;
+}
+
+.board-column-drag-handle svg {
+  width: 0.95rem;
+  height: 0.95rem;
+  display: block;
+}
+
 .board-task-button {
   border-radius: 8px;
   border: 1px solid #3a3a3a;
@@ -136,6 +157,56 @@
   min-height: auto;
 }
 
+.board-inline-form {
+  display: flex;
+  gap: 0.45rem;
+  margin-bottom: 6px;
+  margin-left: 3px;
+  margin-right: 3px;
+  align-items: center;
+}
+
+.board-inline-input {
+  width: 100%;
+  box-sizing: border-box;
+  height: 2.15rem;
+  border-radius: 8px;
+  border: 1px solid #3a3a3a;
+  padding: 0.42rem 0.55rem;
+  background: rgba(255, 255, 255, 0.02);
+  color: inherit;
+}
+
+.board-inline-input:focus {
+  outline: 2px solid rgba(124, 168, 255, 0.55);
+  outline-offset: 1px;
+}
+
+.board-inline-form .board-task-button {
+  flex-shrink: 0;
+}
+
+.board-task-button:disabled,
+.board-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.board-add-column-form {
+  display: grid;
+  gap: 0.55rem;
+  border: 1px dashed #3a3a3a;
+  border-radius: 12px;
+  padding: 0.75rem;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.board-add-column-form .board-button {
+  height: 2.15rem;
+  box-sizing: border-box;
+  justify-content: center;
+}
+
 /* Cards group styling */
 .board-cards {
   flex: 1;
@@ -148,10 +219,35 @@
 
 /* Individual card styles */
 .board-card {
+  position: relative;
   border: 1px solid #3a3a3a;
   border-radius: 10px;
   padding: 0.75rem;
   background: rgba(0, 0, 0, 0.15);
+  cursor: grab;
+}
+
+.board-card:active {
+  cursor: grabbing;
+}
+
+.board-column-drop-target {
+  outline: 2px dashed rgba(124, 168, 255, 0.7);
+  outline-offset: 2px;
+}
+
+.board-cards-drop-target {
+  background: rgba(124, 168, 255, 0.08);
+  border-radius: 10px;
+}
+
+.board-card-dragging {
+  opacity: 0.45;
+}
+
+.board-card-drop-target {
+  border-color: rgba(124, 168, 255, 0.85);
+  background: rgba(124, 168, 255, 0.12);
 }
 
 /* Card Title */
@@ -165,4 +261,134 @@
   margin: 0.35rem 0 0;
   font-size: 0.84rem;
   opacity: 0.82;
+}
+
+.board-card-edit-button {
+  position: absolute;
+  top: 0.4rem;
+  right: 0.4rem;
+  width: 1.55rem;
+  height: 1.55rem;
+  border-radius: 8px;
+  border: 1px solid #3a3a3a;
+  padding: 0.25rem;
+  background: rgba(255, 255, 255, 0.06);
+  color: inherit;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 140ms ease;
+}
+
+.board-card:hover .board-card-edit-button,
+.board-card:focus-within .board-card-edit-button,
+.board-card-editing .board-card-edit-button {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.board-card-edit-button svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.board-card-edit-form {
+  margin-top: 0.45rem;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.board-card-title-input {
+  width: 100%;
+  box-sizing: border-box;
+  border-radius: 8px;
+  border: 1px solid #3a3a3a;
+  padding: 0.42rem 0.55rem;
+  background: rgba(255, 255, 255, 0.03);
+  color: inherit;
+  font: inherit;
+}
+
+.board-card-title-input:focus {
+  outline: 2px solid rgba(124, 168, 255, 0.55);
+  outline-offset: 1px;
+}
+
+.board-card-edit-input {
+  width: 100%;
+  box-sizing: border-box;
+  border-radius: 8px;
+  border: 1px solid #3a3a3a;
+  padding: 0.45rem 0.55rem;
+  resize: vertical;
+  min-height: 4.35rem;
+  background: rgba(255, 255, 255, 0.03);
+  color: inherit;
+  font: inherit;
+}
+
+.board-card-edit-input:focus {
+  outline: 2px solid rgba(124, 168, 255, 0.55);
+  outline-offset: 1px;
+}
+
+.board-card-edit-actions {
+  display: flex;
+  gap: 0.45rem;
+  justify-content: flex-end;
+}
+
+.board-task-button-subtle {
+  opacity: 0.75;
+}
+
+.board-setup-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.65);
+}
+
+.board-setup-modal {
+  width: min(100%, 430px);
+  display: grid;
+  gap: 0.55rem;
+  border: 1px solid #3a3a3a;
+  border-radius: 14px;
+  padding: 1.15rem;
+  background: #1f1f1f;
+}
+
+.board-setup-title {
+  margin: 0 0 0.4rem;
+  font-size: 1.2rem;
+}
+
+.board-setup-label {
+  font-size: 0.86rem;
+  opacity: 0.9;
+}
+
+.board-setup-input {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #3b3b3b;
+  border-radius: 8px;
+  padding: 0.5rem 0.65rem;
+  background: rgba(255, 255, 255, 0.03);
+  color: inherit;
+}
+
+.board-setup-submit {
+  margin-top: 0.45rem;
+  justify-content: center;
+}
+
+.board-member {
+  margin: 0.4rem 0 0;
+  font-size: 0.82rem;
+  opacity: 0.75;
 }
