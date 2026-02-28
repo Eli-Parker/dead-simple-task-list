@@ -109,17 +109,91 @@ export async function createBoard(
  * - board columns -> `columnIds` (list of associated column IDs)
  * - board tasks -> `taskIds` (list of associated task IDs)
  *
- * Current implementation is intentionally empty while we build helpers
- * one at a time; it always returns `null`.
- *
  * @param boardLinkToken Board link token used to fetch board details.
- * @returns Promise resolving to board details, or `null` in placeholder state.
+ * @returns Promise resolving to board details, or `null` if lookup fails.
  */
 export async function getBoardById(
   boardLinkToken: string,
 ): Promise<BoardDetails | null> {
-  void boardLinkToken
-  return null
+  const queryName = apiResolvers.query.taskListByToken
+  const query = `
+    query GetBoardByLinkToken($token: String!) {
+      ${queryName}(token: $token) {
+        board {
+          id
+          link_token
+          title
+          created_at
+          updated_at
+        }
+        columns {
+          id
+        }
+        tasks {
+          id
+        }
+      }
+    }
+  `
+
+  try {
+    const response = await fetch(GRAPHQL_API_URL, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        query,
+        variables: {
+          token: boardLinkToken,
+        },
+      }),
+    })
+
+    if (!response.ok) {
+      return null
+    }
+
+    const payload = (await response.json()) as GraphQLResponse<
+      Record<
+        string,
+        | {
+            board: {
+              id: string
+              link_token: string
+              title: string
+              created_at: string
+              updated_at: string
+            }
+            columns: Array<{ id: string }>
+            tasks: Array<{ id: string }>
+          }
+        | null
+        | undefined
+      >
+    >
+
+    if (payload.errors?.length) {
+      return null
+    }
+
+    const boardData = payload.data?.[queryName]
+    if (!boardData) {
+      return null
+    }
+
+    return {
+      id: boardData.board.id,
+      linkToken: boardData.board.link_token,
+      title: boardData.board.title,
+      createdAt: boardData.board.created_at,
+      updatedAt: boardData.board.updated_at,
+      columnIds: boardData.columns.map((column) => column.id),
+      taskIds: boardData.tasks.map((task) => task.id),
+    }
+  } catch {
+    return null
+  }
 }
 
 /**

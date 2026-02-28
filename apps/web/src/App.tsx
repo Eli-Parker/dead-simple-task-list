@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import skullIcon from './assets/skull-icon.png'
-import { createBoard } from './apiHelpers'
+import { getBoardById } from './apiHelpers'
 import {
   loadRecentListsFromStorage,
   type RecentTaskListStorageEntry,
@@ -42,13 +42,14 @@ function App() {
   const recentListSummariesByBoardId: Record<string, RecentTaskListSummary> = {}
 
   const handleCreateBoardClick = async () => {
-    const boardId = await createBoard('test')
-    if (!boardId) {
-      console.log("No boardID created")
+    const boardId = 'a6382f6cbd59921bdfcd7760'
+    const board = await getBoardById(boardId)
+    if (!board) {
+      console.log('Board not found')
       return
     }
 
-    window.location.assign(createBoardLink(boardId))
+    window.location.assign(createBoardLink(board.linkToken))
   }
 
   useEffect(() => {
