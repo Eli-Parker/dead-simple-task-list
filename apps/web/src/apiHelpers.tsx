@@ -12,7 +12,7 @@ export const apiResolvers = {
   mutation: mutationResolvers,
 } as const
 
-const GRAPHQL_API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:4000/'
+const GRAPHQL_API_URL = import.meta.env.VITE_API_URL ?? 'http://db.deadsimpletasks.app'
 
 type GraphQLResponse<TData> = {
   data?: TData | null
@@ -33,7 +33,7 @@ export type BoardDetails = {
 }
 
 /**
- * Creates a brand new board and returns its board ID.
+ * Creates a brand new board and returns its board link token.
  *
  * Planned API resolver target:
  * `Mutation.createBoard`
@@ -42,10 +42,10 @@ export type BoardDetails = {
  * `{ input: { title: boardTitle } }`
  *
  * Planned return mapping:
- * returns the created board's `id` field as a string.
+ * returns the created board's `link_token` field as a string.
  *
  * @param boardTitle Board title that will map to `input.title`.
- * @returns Promise resolving to the created board ID, or `null` if creation fails.
+ * @returns Promise resolving to the created board link token, or `null` if creation fails.
  */
 export async function createBoard(
   boardTitle: string,
@@ -54,7 +54,7 @@ export async function createBoard(
   const mutation = `
     mutation CreateBoard($input: CreateBoardInput!) {
       ${mutationName}(input: $input) {
-        id
+        link_token
       }
     }
   `
@@ -78,27 +78,27 @@ export async function createBoard(
     }
 
     const payload = (await response.json()) as GraphQLResponse<
-      Record<string, { id: string } | null | undefined>
+      Record<string, { link_token: string } | null | undefined>
     >
 
     if (payload.errors?.length) {
       return null
     }
 
-    return payload.data?.[mutationName]?.id ?? null
+    return payload.data?.[mutationName]?.link_token ?? null
   } catch {
     return null
   }
 }
 
 /**
- * Retrieves board information for a specific board ID.
+ * Retrieves board information for a specific board link token.
  *
  * Planned API resolver target:
- * `Query.board`
+ * `Query.taskListByToken`
  *
  * Planned GraphQL input mapping:
- * - `boardId` -> `id`
+ * - `boardLinkToken` -> `token`
  *
  * Planned return mapping:
  * - `id` -> `id`
@@ -112,13 +112,13 @@ export async function createBoard(
  * Current implementation is intentionally empty while we build helpers
  * one at a time; it always returns `null`.
  *
- * @param boardId Board identifier used to fetch board details.
+ * @param boardLinkToken Board link token used to fetch board details.
  * @returns Promise resolving to board details, or `null` in placeholder state.
  */
 export async function getBoardById(
-  boardId: string,
+  boardLinkToken: string,
 ): Promise<BoardDetails | null> {
-  void boardId
+  void boardLinkToken
   return null
 }
 
@@ -129,7 +129,8 @@ export async function getBoardById(
  * `Mutation.joinBoard`
  *
  * Planned GraphQL input mapping:
- * - `boardId` -> `input.board_id`
+ * - `boardLinkToken` -> lookup board via `Query.taskListByToken(token)`
+ * - looked-up `board.id` -> `input.board_id`
  * - `userName` -> `input.name`
  * - `password` -> `input.password` (optional)
  *
@@ -139,17 +140,17 @@ export async function getBoardById(
  * Current implementation is intentionally empty while we build helpers
  * one at a time; it always returns `null`.
  *
- * @param boardId Board identifier the user is joining.
+ * @param boardLinkToken Board link token the user is joining.
  * @param userName Display name for the user.
  * @param password Optional password for user identity on this board.
  * @returns Promise resolving to the user ID, or `null` in placeholder state.
  */
 export async function addUserToBoard(
-  boardId: string,
+  boardLinkToken: string,
   userName: string,
   password?: string,
 ): Promise<string | null> {
-  void boardId
+  void boardLinkToken
   void userName
   void password
   return null
@@ -162,7 +163,8 @@ export async function addUserToBoard(
  * `Mutation.createColumn`
  *
  * Planned GraphQL input mapping:
- * - `boardId` -> `input.board_id`
+ * - `boardLinkToken` -> lookup board via `Query.taskListByToken(token)`
+ * - looked-up `board.id` -> `input.board_id`
  * - `columnName` -> `input.title`
  * - `columnPosition` -> `input.position`
  *
@@ -173,17 +175,17 @@ export async function addUserToBoard(
  * one at a time; it always returns `null`.
  *
  * @param columnName Human-readable column title.
- * @param boardId Board identifier the new column belongs to.
+ * @param boardLinkToken Board link token for the board the new column belongs to.
  * @param columnPosition Zero-based position/index for column ordering.
  * @returns Promise resolving to the created column ID, or `null` in placeholder state.
  */
 export async function createColumn(
   columnName: string,
-  boardId: string,
+  boardLinkToken: string,
   columnPosition: number,
 ): Promise<string | null> {
   void columnName
-  void boardId
+  void boardLinkToken
   void columnPosition
   return null
 }
@@ -264,7 +266,8 @@ export type TaskDetails = {
  * `Mutation.createTask`
  *
  * Planned GraphQL input mapping:
- * - `boardId` -> `input.board_id`
+ * - `boardLinkToken` -> lookup board via `Query.taskListByToken(token)`
+ * - looked-up `board.id` -> `input.board_id`
  * - `columnId` -> `input.column_id`
  * - `taskName` -> `input.title`
  * - `taskPosition` -> `input.position`
@@ -277,7 +280,7 @@ export type TaskDetails = {
  * Current implementation is intentionally empty while we build helpers
  * one at a time; it always returns `null`.
  *
- * @param boardId Board identifier where the task will be created.
+ * @param boardLinkToken Board link token where the task will be created.
  * @param taskName Human-readable task title.
  * @param columnId Column identifier where the task will initially reside.
  * @param taskPosition Zero-based position/index for task ordering in the column.
@@ -285,13 +288,13 @@ export type TaskDetails = {
  * @returns Promise resolving to the created task ID, or `null` in placeholder state.
  */
 export async function createTask(
-  boardId: string,
+  boardLinkToken: string,
   taskName: string,
   columnId: string,
   taskPosition: number,
   createdAt: string,
 ): Promise<string | null> {
-  void boardId
+  void boardLinkToken
   void taskName
   void columnId
   void taskPosition
