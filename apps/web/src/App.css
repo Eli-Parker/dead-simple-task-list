@@ -1,4 +1,4 @@
-#root {
+.app-page {
   width: 100%;
   max-width: 1120px;
   margin: 0 auto;
@@ -110,12 +110,12 @@
   pointer-events: auto;
 }
 
-.board-card {
+.recent-board-card {
   display: grid;
   gap: 0.9rem;
 }
 
-.board-title {
+.recent-board-title {
   margin: 0;
   font-size: 1.45rem;
   line-height: 1.2;

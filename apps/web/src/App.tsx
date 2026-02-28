@@ -53,7 +53,7 @@ function App() {
   }, [])
 
   return (
-    <div className="page-layout">
+    <div className="app-page page-layout">
       <section className="left-pane">
         <div className="brand-row">
           <img src={skullIcon} className="skull-icon" alt="React logo" />
@@ -87,8 +87,8 @@ function App() {
           </section>
 
           <section className={`screen board-screen ${showBoard ? 'enter' : 'start'}`}>
-            <div className="card board-card">
-              <h2 className="board-title">Recents</h2>
+            <div className="card recent-board-card">
+              <h2 className="recent-board-title">Recents</h2>
               {recentLists.length === 0 ? (
                 <p className="recent-empty-message">No recent lists yet. Create a new board to get started.</p>
               ) : (
