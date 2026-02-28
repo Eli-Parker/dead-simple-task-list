@@ -1,5 +1,6 @@
 import { useState, type Dispatch, type SetStateAction, type FormEvent, type SyntheticEvent } from 'react'
 import './Board.css'
+import { modifyColumn, updateTaskColumn } from './apiHelpers'
 
 /**
  * Typing for an individual task
@@ -56,46 +57,6 @@ function submitBoardSetup(
 }
 
 /**
- * Add a task to a column
- * @param columnId Column ID
- * @param setColumns function to set the columns
- */
-function addTask(
-  columnId: number,
-  taskTitle: string,
-  setColumns: Dispatch<SetStateAction<BoardColumn[]>>,
-) {
-  const cleanTitle = taskTitle.trim()
-  if (!cleanTitle) {
-    return
-  }
-
-  setColumns((prevColumns) => {
-    const nextTaskId = prevColumns
-      .flatMap((column) => column.cards)
-      .reduce((maxId, card) => Math.max(maxId, card.id), 0) + 1
-
-    return prevColumns.map((column) => {
-      if (column.id !== columnId) {
-        return column
-      }
-
-      return {
-        ...column,
-        cards: [
-          ...column.cards,
-          {
-            id: nextTaskId,
-            title: cleanTitle,
-            detail: '',
-          },
-        ],
-      }
-    })
-  })
-}
-
-/**
  * Add a column to the task list
  * @param columnName The column label
  * @param setColumns the function to set the column state
@@ -132,6 +93,13 @@ function addColumn(
 export default function BoardPage() {
   const [columns, setColumns] = useState<BoardColumn[]>(boardColumns)
   const [newTaskTitles, setNewTaskTitles] = useState<Record<number, string>>({})
+  const [taskTitleDrafts, setTaskTitleDrafts] = useState<Record<number, string>>({})
+  const [taskDetailDrafts, setTaskDetailDrafts] = useState<Record<number, string>>({})
+  const [editingTaskId, setEditingTaskId] = useState<number | null>(null)
+  const [draggingColumnId, setDraggingColumnId] = useState<number | null>(null)
+  const [dragOverColumnId, setDragOverColumnId] = useState<number | null>(null)
+  const [draggingTask, setDraggingTask] = useState<{ taskId: number, sourceColumnId: number } | null>(null)
+  const [taskDropTarget, setTaskDropTarget] = useState<{ columnId: number, index: number } | null>(null)
   const [newColumnName, setNewColumnName] = useState('')
   const [isSetupComplete, setIsSetupComplete] = useState(false)
   const [boardSetup, setBoardSetup] = useState<BoardSetup>({
@@ -149,17 +117,216 @@ export default function BoardPage() {
   const handleTaskSubmit = (event: FormEvent<HTMLFormElement>, columnId: number) => {
     event.preventDefault()
     const title = newTaskTitles[columnId] ?? ''
-    addTask(columnId, title, setColumns)
+    const cleanTitle = title.trim()
+    if (!cleanTitle) {
+      return
+    }
+
+    const nextTaskId = columns
+      .flatMap((column) => column.cards)
+      .reduce((maxId, card) => Math.max(maxId, card.id), 0) + 1
+
+    setColumns((prevColumns) =>
+      prevColumns.map((column) => {
+        if (column.id !== columnId) {
+          return column
+        }
+
+        return {
+          ...column,
+          cards: [
+            ...column.cards,
+            {
+              id: nextTaskId,
+              title: cleanTitle,
+              detail: '',
+            },
+          ],
+        }
+      }),
+    )
+
     setNewTaskTitles((prevTitles) => ({
       ...prevTitles,
       [columnId]: '',
     }))
+    setTaskTitleDrafts((prevDrafts) => ({
+      ...prevDrafts,
+      [nextTaskId]: cleanTitle,
+    }))
+    setTaskDetailDrafts((prevDrafts) => ({
+      ...prevDrafts,
+      [nextTaskId]: '',
+    }))
+    setEditingTaskId(nextTaskId)
   }
 
   const handleColumnSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     addColumn(newColumnName, setColumns)
     setNewColumnName('')
+  }
+
+  const handleEditStart = (card: TaskCard) => {
+    setTaskTitleDrafts((prevDrafts) => ({
+      ...prevDrafts,
+      [card.id]: card.title,
+    }))
+    setTaskDetailDrafts((prevDrafts) => ({
+      ...prevDrafts,
+      [card.id]: card.detail,
+    }))
+    setEditingTaskId(card.id)
+  }
+
+  const handleEditCancel = (cardId: number) => {
+    setEditingTaskId((prevId) => (prevId === cardId ? null : prevId))
+  }
+
+  const handleDetailSave = (
+    event: FormEvent<HTMLFormElement>,
+    columnId: number,
+    cardId: number,
+  ) => {
+    event.preventDefault()
+    const updatedTitle = (taskTitleDrafts[cardId] ?? '').trim()
+    const updatedDetail = (taskDetailDrafts[cardId] ?? '').trim()
+    if (!updatedTitle) {
+      return
+    }
+
+    setColumns((prevColumns) =>
+      prevColumns.map((column) => {
+        if (column.id !== columnId) {
+          return column
+        }
+
+        return {
+          ...column,
+          cards: column.cards.map((card) =>
+            card.id === cardId
+              ? {
+                ...card,
+                title: updatedTitle,
+                detail: updatedDetail,
+              }
+              : card,
+          ),
+        }
+      }),
+    )
+    setEditingTaskId((prevId) => (prevId === cardId ? null : prevId))
+  }
+
+  const handleColumnDragStart = (columnId: number) => {
+    setDraggingColumnId(columnId)
+    setDragOverColumnId(columnId)
+  }
+
+  const handleColumnDragEnd = () => {
+    setDraggingColumnId(null)
+    setDragOverColumnId(null)
+  }
+
+  const handleColumnDrop = (targetColumnId: number) => {
+    if (draggingColumnId === null || draggingColumnId === targetColumnId) {
+      setDragOverColumnId(null)
+      return
+    }
+
+    const nextPosition = columns.findIndex((column) => column.id === targetColumnId)
+    if (nextPosition === -1) {
+      setDragOverColumnId(null)
+      return
+    }
+
+    setColumns((prevColumns) => {
+      const sourceIndex = prevColumns.findIndex((column) => column.id === draggingColumnId)
+      const destinationIndex = prevColumns.findIndex((column) => column.id === targetColumnId)
+
+      if (sourceIndex === -1 || destinationIndex === -1) {
+        return prevColumns
+      }
+
+      const nextColumns = [...prevColumns]
+      const [movedColumn] = nextColumns.splice(sourceIndex, 1)
+      nextColumns.splice(destinationIndex, 0, movedColumn)
+      return nextColumns
+    })
+
+    void modifyColumn(String(draggingColumnId), nextPosition)
+    setDragOverColumnId(null)
+  }
+
+  const handleTaskDragStart = (taskId: number, sourceColumnId: number) => {
+    setDraggingTask({ taskId, sourceColumnId })
+  }
+
+  const handleTaskDragEnd = () => {
+    setDraggingTask(null)
+    setTaskDropTarget(null)
+  }
+
+  const handleTaskMove = (
+    targetColumnId: number,
+    targetIndex: number,
+  ) => {
+    if (!draggingTask) {
+      return
+    }
+
+    setColumns((prevColumns) => {
+      const sourceColumnIndex = prevColumns.findIndex((column) => column.id === draggingTask.sourceColumnId)
+      const targetColumnIndex = prevColumns.findIndex((column) => column.id === targetColumnId)
+
+      if (sourceColumnIndex === -1 || targetColumnIndex === -1) {
+        return prevColumns
+      }
+
+      const sourceCards = [...prevColumns[sourceColumnIndex].cards]
+      const sourceTaskIndex = sourceCards.findIndex((card) => card.id === draggingTask.taskId)
+      if (sourceTaskIndex === -1) {
+        return prevColumns
+      }
+
+      const [movedTask] = sourceCards.splice(sourceTaskIndex, 1)
+      const targetCards =
+        sourceColumnIndex === targetColumnIndex
+          ? sourceCards
+          : [...prevColumns[targetColumnIndex].cards]
+
+      const clampedIndex = Math.max(0, Math.min(targetIndex, targetCards.length))
+      targetCards.splice(clampedIndex, 0, movedTask)
+
+      return prevColumns.map((column, index) => {
+        if (index === sourceColumnIndex && sourceColumnIndex === targetColumnIndex) {
+          return {
+            ...column,
+            cards: targetCards,
+          }
+        }
+
+        if (index === sourceColumnIndex) {
+          return {
+            ...column,
+            cards: sourceCards,
+          }
+        }
+
+        if (index === targetColumnIndex) {
+          return {
+            ...column,
+            cards: targetCards,
+          }
+        }
+
+        return column
+      })
+    })
+
+    void updateTaskColumn(String(draggingTask.taskId), String(targetColumnId), targetIndex)
+    setDraggingTask(null)
+    setTaskDropTarget(null)
   }
 
   return (
@@ -253,19 +420,171 @@ export default function BoardPage() {
       <section className="board-grid">
         {/* Load columns */}
         {columns.map((column) => (
-          <article key={column.id} className="board-column">
+          <article
+            key={column.id}
+            className={`board-column${dragOverColumnId === column.id ? ' board-column-drop-target' : ''}`}
+            onDragOver={(event) => {
+              if (draggingColumnId === null) {
+                return
+              }
+              event.preventDefault()
+              setDragOverColumnId(column.id)
+            }}
+            onDrop={(event) => {
+              if (draggingColumnId === null) {
+                return
+              }
+              event.preventDefault()
+              handleColumnDrop(column.id)
+            }}
+          >
             <div className="board-column-header">
               <h2 className="board-column-title">{column.name}</h2>
               <div className="board-column-actions">
                 <span className="board-count-pill">{column.cards.length}</span>
+                <button
+                  type="button"
+                  className="board-column-drag-handle"
+                  draggable
+                  onDragStart={(event) => {
+                    event.dataTransfer.effectAllowed = 'move'
+                    handleColumnDragStart(column.id)
+                  }}
+                  onDragEnd={handleColumnDragEnd}
+                  aria-label={`Drag column ${column.name}`}
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="currentColor">
+                    <circle cx="8" cy="6" r="1.6" />
+                    <circle cx="16" cy="6" r="1.6" />
+                    <circle cx="8" cy="12" r="1.6" />
+                    <circle cx="16" cy="12" r="1.6" />
+                    <circle cx="8" cy="18" r="1.6" />
+                    <circle cx="16" cy="18" r="1.6" />
+                  </svg>
+                </button>
               </div>
             </div>
-            <div className="board-cards">
+            <div
+              className={`board-cards${taskDropTarget?.columnId === column.id ? ' board-cards-drop-target' : ''}`}
+              onDragOver={(event) => {
+                if (!draggingTask) {
+                  return
+                }
+                event.preventDefault()
+                event.stopPropagation()
+                setTaskDropTarget({
+                  columnId: column.id,
+                  index: column.cards.length,
+                })
+              }}
+              onDrop={(event) => {
+                if (!draggingTask) {
+                  return
+                }
+                event.preventDefault()
+                event.stopPropagation()
+                handleTaskMove(column.id, column.cards.length)
+              }}
+            >
               {/* Load cards */}
-              {column.cards.map((card) => (
-                <div key={card.id} className="board-card">
-                  <h3 className="board-card-title">{card.title}</h3>
-                  <p className="board-card-detail">{card.detail}</p>
+              {column.cards.map((card, cardIndex) => (
+                <div
+                  key={card.id}
+                  className={`board-card${editingTaskId === card.id ? ' board-card-editing' : ''}${draggingTask?.taskId === card.id ? ' board-card-dragging' : ''}${taskDropTarget?.columnId === column.id && taskDropTarget.index === cardIndex ? ' board-card-drop-target' : ''}`}
+                  draggable={editingTaskId !== card.id}
+                  onDragStart={(event) => {
+                    event.dataTransfer.effectAllowed = 'move'
+                    handleTaskDragStart(card.id, column.id)
+                  }}
+                  onDragEnd={handleTaskDragEnd}
+                  onDragOver={(event) => {
+                    if (!draggingTask) {
+                      return
+                    }
+                    event.preventDefault()
+                    event.stopPropagation()
+                    setTaskDropTarget({
+                      columnId: column.id,
+                      index: cardIndex,
+                    })
+                  }}
+                  onDrop={(event) => {
+                    if (!draggingTask) {
+                      return
+                    }
+                    event.preventDefault()
+                    event.stopPropagation()
+                    handleTaskMove(column.id, cardIndex)
+                  }}
+                >
+                  {editingTaskId !== card.id && (
+                    <button
+                      type="button"
+                      className="board-card-edit-button"
+                      onClick={() => handleEditStart(card)}
+                      aria-label={`Edit ${card.title}`}
+                    >
+                      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M12 20h9" />
+                        <path d="m16.5 3.5 4 4L7 21l-4 1 1-4Z" />
+                      </svg>
+                    </button>
+                  )}
+                  {editingTaskId === card.id ? (
+                    <form
+                      className="board-card-edit-form"
+                      onSubmit={(event) => handleDetailSave(event, column.id, card.id)}
+                    >
+                      <input
+                        className="board-card-title-input"
+                        type="text"
+                        value={taskTitleDrafts[card.id] ?? ''}
+                        onChange={(event) =>
+                          setTaskTitleDrafts((prevDrafts) => ({
+                            ...prevDrafts,
+                            [card.id]: event.target.value,
+                          }))
+                        }
+                        placeholder="Task title"
+                        aria-label="Task title"
+                        autoFocus
+                      />
+                      <textarea
+                        className="board-card-edit-input"
+                        value={taskDetailDrafts[card.id] ?? ''}
+                        onChange={(event) =>
+                          setTaskDetailDrafts((prevDrafts) => ({
+                            ...prevDrafts,
+                            [card.id]: event.target.value,
+                          }))
+                        }
+                        rows={3}
+                        placeholder="Add a description..."
+                        aria-label={`Description for ${card.title}`}
+                      />
+                      <div className="board-card-edit-actions">
+                        <button
+                          type="submit"
+                          className="board-task-button"
+                          disabled={!(taskTitleDrafts[card.id] ?? '').trim()}
+                        >
+                          Save
+                        </button>
+                        <button
+                          type="button"
+                          className="board-task-button board-task-button-subtle"
+                          onClick={() => handleEditCancel(card.id)}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </form>
+                  ) : (
+                    <>
+                      <h3 className="board-card-title">{card.title}</h3>
+                      <p className="board-card-detail">{card.detail || 'No description yet.'}</p>
+                    </>
+                  )}
                 </div>
               ))}
 
