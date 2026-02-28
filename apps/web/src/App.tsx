@@ -13,9 +13,9 @@ type RecentTaskListSummary = {
 }
 
 const placeholderRecentLists: RecentTaskListStorageEntry[] = [
-  { id: 'lorem', title: 'Lorem', boardId: 'lorem' },
-  { id: 'ipsum', title: 'Ipsum', boardId: 'ipsum' },
-  { id: 'dolar', title: 'Dolar', boardId: 'dolar' },
+  { title: 'Lorem', boardId: 'lorem' },
+  { title: 'Ipsum', boardId: 'ipsum' },
+  { title: 'Dolar', boardId: 'dolar' },
 ]
 
 /**
@@ -82,7 +82,7 @@ function App() {
             <div className="card board-card">
               <h2 className="board-title">Recents</h2>
               {recentLists.map((list) => (
-                <a key={list.id} href={createBoardLink(list.boardId)} className="intro recent-item recent-item-link">
+                <a key={list.boardId} href={createBoardLink(list.boardId)} className="intro recent-item recent-item-link">
                   <span>{list.title}</span>
                   <span className="recent-item-center">{formatTaskCount(recentListSummariesByBoardId[list.boardId]?.taskCount ?? null)}</span>
                   <span className="recent-item-right">{recentListSummariesByBoardId[list.boardId]?.updatedLabel ?? 'Loading...'}</span>
