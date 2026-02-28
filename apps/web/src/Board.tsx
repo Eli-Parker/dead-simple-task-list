@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type Dispatch, type SetStateAction } from 'react'
 import './Board.css'
 
 /**
@@ -20,69 +20,80 @@ type BoardColumn = {
 }
 
 /**
+ * Add a task to a column
+ * @param columnId Column ID
+ * @param setColumns function to set the columns
+ */
+function addTask(
+  columnId: number,
+  setColumns: Dispatch<SetStateAction<BoardColumn[]>>,
+) {
+  const title = window.prompt('Task title:')
+
+  if (!title?.trim()) {
+    return
+  }
+
+  const detail = window.prompt('Task detail (optional):')?.trim() ?? ''
+
+  setColumns((prevColumns) => {
+    const nextTaskId = prevColumns
+      .flatMap((column) => column.cards)
+      .reduce((maxId, card) => Math.max(maxId, card.id), 0) + 1
+
+    return prevColumns.map((column) => {
+      if (column.id !== columnId) {
+        return column
+      }
+
+      return {
+        ...column,
+        cards: [
+          ...column.cards,
+          {
+            id: nextTaskId,
+            title: title.trim(),
+            detail: detail || '',
+          },
+        ],
+      }
+    })
+  })
+}
+
+/**
+ * Add a column to the task list
+ * @param setColumns the function to set the column state
+ */
+function addColumn(setColumns: Dispatch<SetStateAction<BoardColumn[]>>) {
+  const name = window.prompt('New column name:')
+
+  if (!name?.trim()) {
+    return
+  }
+
+  setColumns((prevColumns) => {
+    const nextColumnId =
+      prevColumns.reduce((maxId, column) => Math.max(maxId, column.id), 0) + 1
+
+    return [
+      ...prevColumns,
+      {
+        id: nextColumnId,
+        name: name.trim(),
+        cards: [],
+      },
+    ]
+  })
+}
+
+/**
  * Contains the tsx for the board page.
  * 
  * @returns The entire /board page
  */
-function BoardPage() {
+export default function BoardPage() {
   const [columns, setColumns] = useState<BoardColumn[]>(boardColumns)
-
-  const addColumn = () => {
-    const name = window.prompt('New column name:')
-
-    if (!name?.trim()) {
-      return
-    }
-
-    setColumns((prevColumns) => {
-      const nextColumnId =
-        prevColumns.reduce((maxId, column) => Math.max(maxId, column.id), 0) + 1
-
-      return [
-        ...prevColumns,
-        {
-          id: nextColumnId,
-          name: name.trim(),
-          cards: [],
-        },
-      ]
-    })
-  }
-
-  const addTask = (columnId: number) => {
-    const title = window.prompt('Task title:')
-
-    if (!title?.trim()) {
-      return
-    }
-
-    const detail = window.prompt('Task detail (optional):')?.trim() ?? ''
-
-    setColumns((prevColumns) => {
-      const nextTaskId =
-        prevColumns
-          .flatMap((column) => column.cards)
-          .reduce((maxId, card) => Math.max(maxId, card.id), 0) + 1
-
-      return prevColumns.map((column) => {
-        if (column.id !== columnId) {
-          return column
-        }
-
-        return {
-          ...column,
-          cards: [
-            ...column.cards,
-            {
-              id: nextTaskId,
-              title: title.trim(),
-              detail: detail || 'No details yet.',
-            },
-          ],
-        }
-      })
-    })
-  }
 
   return (
     <main className="board-page">
@@ -112,7 +123,7 @@ function BoardPage() {
                 <button
                   type="button"
                   className="board-task-button"
-                  onClick={() => addTask(column.id)}
+                  onClick={() => addTask(column.id, setColumns)}
                 >
                   + Task
                 </button>
@@ -131,7 +142,11 @@ function BoardPage() {
         ))}
 
         <article className="board-column board-add-column">
-          <button type="button" className="board-button full" onClick={addColumn}>
+          <button
+            type="button"
+            className="board-button full"
+            onClick={() => addColumn(setColumns)}
+          >
             + Add Column
           </button>
         </article>
@@ -139,8 +154,6 @@ function BoardPage() {
     </main>
   )
 }
-
-export default BoardPage
 
 /**
  * Temp until db gets setup
