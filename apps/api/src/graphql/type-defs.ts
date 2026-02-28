@@ -50,9 +50,25 @@ export const typeDefs = `#graphql
     title: String!
   }
 
+  input UpdateBoardInput {
+    id: ID!
+    title: String!
+  }
+
   input CreateColumnInput {
     board_id: ID!
     title: String!
+    position: Int!
+  }
+
+  input UpdateColumnInput {
+    id: ID!
+    title: String!
+  }
+
+  input MoveColumnInput {
+    id: ID!
+    board_id: ID!
     position: Int!
   }
 
@@ -77,12 +93,30 @@ export const typeDefs = `#graphql
     position: Int!
   }
 
+  input JoinBoardInput {
+    board_id: ID!
+    name: String!
+    password: String
+  }
+
+  input HeartbeatUserInput {
+    id: ID!
+  }
+
   type Mutation {
     createBoard(input: CreateBoardInput!): Board!
+    updateBoard(input: UpdateBoardInput!): Board!
+    deleteBoard(id: ID!): Boolean!
     createColumn(input: CreateColumnInput!): Column!
+    updateColumn(input: UpdateColumnInput!): Column!
+    moveColumn(input: MoveColumnInput!): Column!
+    deleteColumn(id: ID!): Boolean!
     createTask(input: CreateTaskInput!): Task!
     updateTask(input: UpdateTaskInput!): Task!
     moveTask(input: MoveTaskInput!): Task!
     deleteTask(id: ID!): Boolean!
+    joinBoard(input: JoinBoardInput!): Users!
+    heartbeatUser(input: HeartbeatUserInput!): Users!
+    leaveBoard(id: ID!): Boolean!
   }
 `;

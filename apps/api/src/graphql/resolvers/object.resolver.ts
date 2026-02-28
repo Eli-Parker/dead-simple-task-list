@@ -1,5 +1,6 @@
 import { queryRows } from "../../db/query.js";
 import type { GraphQLContext } from "../context.js";
+import { notFound } from "../errors.js";
 import type {
   BoardRow,
   ColumnRow,
@@ -42,7 +43,7 @@ export const objectResolvers = {
       );
 
       if (!rows[0]) {
-        throw new Error(`Board with id ${parent.board_id} not found`);
+        notFound(`Board with id ${parent.board_id} not found`);
       }
 
       return rows[0];
@@ -67,7 +68,7 @@ export const objectResolvers = {
       );
 
       if (!rows[0]) {
-        throw new Error(`Column with id ${parent.column_id} not found`);
+        notFound(`Column with id ${parent.column_id} not found`);
       }
 
       return rows[0];
@@ -90,7 +91,7 @@ export const objectResolvers = {
       );
 
       if (!rows[0]) {
-        throw new Error(`Board with id ${parent.board_id} not found`);
+        notFound(`Board with id ${parent.board_id} not found`);
       }
 
       return rows[0];
@@ -115,7 +116,7 @@ export const objectResolvers = {
       );
 
       if (!rows[0]) {
-        throw new Error(`Board with id ${parent.board_id} not found`);
+        notFound(`Board with id ${parent.board_id} not found`);
       }
 
       return rows[0];

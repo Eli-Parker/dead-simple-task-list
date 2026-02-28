@@ -74,12 +74,42 @@ export type CreateBoardArgs = {
   };
 };
 
+export type UpdateBoardArgs = {
+  input: {
+    id: string;
+    title: string;
+  };
+};
+
+export type DeleteBoardArgs = {
+  id: string;
+};
+
 export type CreateColumnArgs = {
   input: {
     board_id: string;
     title: string;
     position: number;
   };
+};
+
+export type UpdateColumnArgs = {
+  input: {
+    id: string;
+    title: string;
+  };
+};
+
+export type MoveColumnArgs = {
+  input: {
+    id: string;
+    board_id: string;
+    position: number;
+  };
+};
+
+export type DeleteColumnArgs = {
+  id: string;
 };
 
 export type CreateTaskArgs = {
@@ -110,5 +140,23 @@ export type MoveTaskArgs = {
 };
 
 export type DeleteTaskArgs = {
+  id: string;
+};
+
+export type JoinBoardArgs = {
+  input: {
+    board_id: string;
+    name: string;
+    password?: string | null;
+  };
+};
+
+export type HeartbeatUserArgs = {
+  input: {
+    id: string;
+  };
+};
+
+export type LeaveBoardArgs = {
   id: string;
 };
