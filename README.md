@@ -6,7 +6,7 @@ Built during a **24 Hour Hackathon**, this project shipped as a complete full-st
 
 Live app: [https://deadsimpletasks.app/](https://deadsimpletasks.app/)
 
-Contributors: Eli Parker, Canon Curtis, Emery Ingebretson
+Contributors: Eli Parker, Canon Curtis, Emery Ingebretsen
 
 ## Why We Built This
 
