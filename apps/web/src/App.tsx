@@ -25,21 +25,36 @@ function formatTaskCount(taskCount: number | null): string {
 }
 
 /**
- * Formats a stored-at timestamp into a readable date/time label.
+ * Formats a stored-at timestamp into a relative "time since" label.
  *
  * @param storedAt ISO timestamp from local storage.
- * @returns Human-friendly date label.
+ * @returns Human-friendly relative time label.
  */
 function formatStoredAtLabel(storedAt: string | null): string {
-  if (!storedAt) return 'Unknown date'
+  if (!storedAt) return 'Unknown time'
 
   const parsedDate = new Date(storedAt)
-  if (Number.isNaN(parsedDate.getTime())) return 'Unknown date'
+  if (Number.isNaN(parsedDate.getTime())) return 'Unknown time'
 
-  return new Intl.DateTimeFormat(undefined, {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  }).format(parsedDate)
+  const elapsedSeconds = Math.round((Date.now() - parsedDate.getTime()) / 1000)
+  if (Math.abs(elapsedSeconds) < 5) return 'just now'
+
+  const relativeTimeFormat = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' })
+  const units: Array<[Intl.RelativeTimeFormatUnit, number]> = [
+    ['year', 60 * 60 * 24 * 365],
+    ['month', 60 * 60 * 24 * 30],
+    ['week', 60 * 60 * 24 * 7],
+    ['day', 60 * 60 * 24],
+    ['hour', 60 * 60],
+    ['minute', 60],
+    ['second', 1],
+  ]
+
+  const [unit, secondsPerUnit] =
+    units.find(([, seconds]) => Math.abs(elapsedSeconds) >= seconds) ?? ['second', 1]
+
+  const value = Math.trunc(elapsedSeconds / secondsPerUnit)
+  return relativeTimeFormat.format(-value, unit)
 }
 
 /**
