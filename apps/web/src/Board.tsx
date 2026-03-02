@@ -238,7 +238,8 @@ async function loadColumnsFromBoardDetails(boardDetails: BoardDetails): Promise<
 function saveRecentBoard(title: string, boardId: string): void {
   const existingEntries = loadRecentListsFromStorage([])
   const dedupedEntries = existingEntries.filter((entry) => entry.boardId !== boardId)
-  const nextEntries = [{ title, boardId }, ...dedupedEntries].slice(0, MAX_RECENT_LISTS)
+  const nextEntries = [{ title, boardId, storedAt: new Date().toISOString() }, ...dedupedEntries]
+    .slice(0, MAX_RECENT_LISTS)
   saveRecentListsToStorage(nextEntries)
 }
 

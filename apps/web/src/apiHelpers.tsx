@@ -37,6 +37,14 @@ export type BoardDetails = {
 }
 
 /**
+ * Client-side shape for board summary data used by lightweight board lookups.
+ */
+export type BoardSummary = {
+  lastModifiedDate: string
+  taskCount: number
+}
+
+/**
  * Creates a brand new board and returns its board link token.
  *
  * Planned API resolver target:
@@ -200,6 +208,89 @@ export async function getBoardById(
         position: column.position,
       })),
       taskIds: boardData.tasks.map((task) => task.id),
+    }
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Retrieves lightweight board summary data for a specific board link token.
+ *
+ * Planned API resolver target:
+ * `Query.taskListByToken`
+ *
+ * Planned GraphQL input mapping:
+ * - `boardLinkToken` -> `token`
+ *
+ * Planned return mapping:
+ * - `board.updated_at` -> `lastModifiedDate`
+ * - `tasks.length` -> `taskCount`
+ *
+ * @param boardLinkToken Board link token used to fetch summary details.
+ * @returns Promise resolving to board summary details, or `null` if lookup fails.
+ */
+export async function getBoardSummaryByLink(
+  boardLinkToken: string,
+): Promise<BoardSummary | null> {
+  const queryName = apiResolvers.query.taskListByToken
+  const query = `
+    query GetBoardSummaryByLinkToken($token: String!) {
+      ${queryName}(token: $token) {
+        board {
+          updated_at
+        }
+        tasks {
+          id
+        }
+      }
+    }
+  `
+
+  try {
+    const response = await fetch(GRAPHQL_API_URL, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        query,
+        variables: {
+          token: boardLinkToken,
+        },
+      }),
+    })
+
+    if (!response.ok) {
+      return null
+    }
+
+    const payload = (await response.json()) as GraphQLResponse<
+      Record<
+        string,
+        | {
+            board: {
+              updated_at: string
+            }
+            tasks: Array<{ id: string }>
+          }
+        | null
+        | undefined
+      >
+    >
+
+    if (payload.errors?.length) {
+      return null
+    }
+
+    const boardData = payload.data?.[queryName]
+    if (!boardData) {
+      return null
+    }
+
+    return {
+      lastModifiedDate: boardData.board.updated_at,
+      taskCount: boardData.tasks.length,
     }
   } catch {
     return null

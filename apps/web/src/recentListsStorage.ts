@@ -3,6 +3,7 @@ import { createLocalStorageStore, parseStoredArray } from './localStorageStore'
 export type RecentTaskListStorageEntry = {
   title: string
   boardId: string
+  storedAt: string | null
 }
 
 const RECENT_LISTS_STORAGE_KEY = 'dst_recent_lists'
@@ -25,16 +26,23 @@ function parseRecentTaskListStorageEntry(value: unknown): RecentTaskListStorageE
     return null
   }
 
+  const storedAt =
+    typeof candidate.storedAt === 'string' && !Number.isNaN(Date.parse(candidate.storedAt))
+      ? new Date(candidate.storedAt).toISOString()
+      : null
+
   return {
     title: candidate.title,
     boardId: candidate.boardId,
+    storedAt,
   }
 }
 
 const recentListsStore = createLocalStorageStore<RecentTaskListStorageEntry[]>({
   key: RECENT_LISTS_STORAGE_KEY,
   parse: (value) => parseStoredArray(value, parseRecentTaskListStorageEntry, { requireNonEmpty: true }),
-  serialize: (recentLists) => recentLists.map(({ title, boardId }) => ({ title, boardId })),
+  serialize: (recentLists) =>
+    recentLists.map(({ title, boardId, storedAt }) => ({ title, boardId, storedAt })),
 })
 
 /**
@@ -55,7 +63,7 @@ export function loadRecentListsFromStorage(
 /**
  * Persists recent task lists to browser local storage.
  *
- * Only `title` and `boardId` are serialized.
+ * `title`, `boardId`, and `storedAt` are serialized.
  *
  * @param recentLists Recent list entries to persist.
  */
