@@ -40,7 +40,7 @@ export type BoardDetails = {
  * Client-side shape for board summary data used by lightweight board lookups.
  */
 export type BoardSummary = {
-  lastModifiedDate: string
+  storedAt: string | null
   taskCount: number
 }
 
@@ -224,22 +224,21 @@ export async function getBoardById(
  * - `boardLinkToken` -> `token`
  *
  * Planned return mapping:
- * - `board.updated_at` -> `lastModifiedDate`
+ * - `storedAt` argument -> `storedAt`
  * - `tasks.length` -> `taskCount`
  *
  * @param boardLinkToken Board link token used to fetch summary details.
+ * @param storedAt Timestamp from recent-list local storage.
  * @returns Promise resolving to board summary details, or `null` if lookup fails.
  */
 export async function getBoardSummaryByLink(
   boardLinkToken: string,
+  storedAt: string | null,
 ): Promise<BoardSummary | null> {
   const queryName = apiResolvers.query.taskListByToken
   const query = `
     query GetBoardSummaryByLinkToken($token: String!) {
       ${queryName}(token: $token) {
-        board {
-          updated_at
-        }
         tasks {
           id
         }
@@ -269,9 +268,6 @@ export async function getBoardSummaryByLink(
       Record<
         string,
         | {
-            board: {
-              updated_at: string
-            }
             tasks: Array<{ id: string }>
           }
         | null
@@ -289,7 +285,7 @@ export async function getBoardSummaryByLink(
     }
 
     return {
-      lastModifiedDate: boardData.board.updated_at,
+      storedAt,
       taskCount: boardData.tasks.length,
     }
   } catch {

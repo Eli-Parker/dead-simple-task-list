@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import skullIcon from './assets/skull-icon.png'
 import taskListPreview from './assets/tl-preview.png'
+import { getBoardSummaryByLink } from './apiHelpers'
 import {
   loadRecentListsFromStorage,
   type RecentTaskListStorageEntry,
@@ -8,8 +9,8 @@ import {
 import './App.css'
 
 type RecentTaskListSummary = {
-  taskCount: number
-  updatedLabel: string
+  taskCount: number | null
+  storedAtLabel: string
 }
 
 /**
@@ -21,6 +22,24 @@ type RecentTaskListSummary = {
 function formatTaskCount(taskCount: number | null): string {
   if (taskCount === null) return 'Loading...'
   return `${taskCount} task${taskCount === 1 ? '' : 's'}`
+}
+
+/**
+ * Formats a stored-at timestamp into a readable date/time label.
+ *
+ * @param storedAt ISO timestamp from local storage.
+ * @returns Human-friendly date label.
+ */
+function formatStoredAtLabel(storedAt: string | null): string {
+  if (!storedAt) return 'Unknown date'
+
+  const parsedDate = new Date(storedAt)
+  if (Number.isNaN(parsedDate.getTime())) return 'Unknown date'
+
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(parsedDate)
 }
 
 /**
@@ -39,7 +58,7 @@ function App() {
   const [isMobile, setIsMobile] = useState(() => window.matchMedia('(max-width: 900px)').matches)
   const [showBoard, setShowBoard] = useState(false)
   const [recentLists] = useState<RecentTaskListStorageEntry[]>(() => loadRecentListsFromStorage())
-  const recentListSummariesByBoardId: Record<string, RecentTaskListSummary> = {}
+  const [recentListSummariesByBoardId, setRecentListSummariesByBoardId] = useState<Record<string, RecentTaskListSummary>>({})
 
   useEffect(() => {
     const mediaQuery = window.matchMedia('(max-width: 900px)')
@@ -52,6 +71,43 @@ function App() {
       mediaQuery.removeEventListener('change', handleMediaQueryChange)
     }
   }, [])
+
+  useEffect(() => {
+    if (recentLists.length === 0) {
+      return
+    }
+
+    let cancelled = false
+
+    void (async () => {
+      const entries = await Promise.all(
+        recentLists.map(async (list) => {
+          const summary = await getBoardSummaryByLink(list.boardId, list.storedAt)
+          const nextSummary: RecentTaskListSummary = summary
+            ? {
+                taskCount: summary.taskCount,
+                storedAtLabel: formatStoredAtLabel(summary.storedAt),
+              }
+            : {
+                taskCount: null,
+                storedAtLabel: formatStoredAtLabel(list.storedAt),
+              }
+
+          return [list.boardId, nextSummary] as const
+        }),
+      )
+
+      if (cancelled) {
+        return
+      }
+
+      setRecentListSummariesByBoardId(Object.fromEntries(entries))
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [recentLists])
 
   return (
     <div className="app-page page-layout">
@@ -97,7 +153,7 @@ function App() {
                   <a key={list.boardId} href={createBoardLink(list.boardId)} className="intro recent-item recent-item-link">
                     <span>{list.title}</span>
                     <span className="recent-item-center">{formatTaskCount(recentListSummariesByBoardId[list.boardId]?.taskCount ?? null)}</span>
-                    <span className="recent-item-right">{recentListSummariesByBoardId[list.boardId]?.updatedLabel ?? 'Loading...'}</span>
+                    <span className="recent-item-right">{recentListSummariesByBoardId[list.boardId]?.storedAtLabel ?? 'Loading...'}</span>
                   </a>
                 ))
               )}
